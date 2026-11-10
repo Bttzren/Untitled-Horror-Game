@@ -40,7 +40,7 @@ export class Renderer {
     this.gl.toneMapping = THREE.ACESFilmicToneMapping;
     this.scene.background = new THREE.Color(0x0b0b08);
     this.scene.fog = new THREE.FogExp2(0x0b0b08, 0.045);
-    this.scene.add(new THREE.HemisphereLight(0xfff4d0, 0x302a18, 0.35));
+    this.scene.add(new THREE.HemisphereLight(0xfff4d0, 0x302a18, 0.2));
     this.scene.add(this.dream, this.actors, this.camera);
     this.camera.rotation.order = 'YXZ';
     this.camera.add(this.flashlight, this.flashlight.target);
@@ -330,7 +330,7 @@ export class Renderer {
     const nearest = this.lightSpots.filter(s => s.on).sort((a, b) => a.pos.distanceToSquared(here) - b.pos.distanceToSquared(here));
     this.roomLights.forEach((light, i) => {
       const spot = nearest[i];
-      light.intensity = spot ? (phase2 ? 9 : 14) : 0;
+      light.intensity = spot ? (phase2 ? 6 : 10) : 0;
       if (spot) light.position.copy(spot.pos);
     });
   }

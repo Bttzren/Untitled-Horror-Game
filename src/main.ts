@@ -11,6 +11,7 @@ import type { ViewState } from './rules/types';
 import { DT, createWorld } from './rules/world';
 import { Renderer } from './view/renderer';
 import { el } from './view/ui/dom';
+import { Hud, describeEvent, nextSpectateTarget, resultPanel } from './view/ui/hud';
 import { renderLobby } from './view/ui/lobby';
 import { renderMenu, type MenuNotice } from './view/ui/menu';
 import { MESSAGES } from './view/ui/messages';
@@ -22,6 +23,7 @@ const ui = document.getElementById('ui') as HTMLElement;
 const screen = el('div');
 ui.append(screen, el('div', { attrs: { id: 'hint' }, text: 'Click to play' }));
 
+const hud = new Hud(ui);
 const renderer = new Renderer(canvas);
 const input = new Input(canvas);
 
@@ -50,6 +52,9 @@ let menu: { name: string; notice: MenuNotice | null; busy: string | null } = { n
 // Behind the menu: a slow turn in an empty dream.
 const backdropMap = generateDream(Math.floor(Math.random() * 0xffffffff), 1);
 const backdrop = createWorld(backdropMap, [{ id: 0, name: '' }], 1);
+// Stand in the middle of the first room beyond the Door's, so the Door itself is not filling the view.
+const backdropCell = backdropMap.rooms[1]?.cells[0];
+if (backdropCell) backdrop.players[0]!.pos = { x: (backdropCell.cx + 0.5) * 4, z: (backdropCell.cz + 0.5) * 4 };
 let backdropShown = false;
 
 function showMenu(notice: MenuNotice | null = null): void {
@@ -89,6 +94,11 @@ function adopt(client: GameClient, host: GameHost | null, stopTicker: (() => voi
     else if (client.status === 'refused') endSession({ text: client.refusedReason === 'full' ? MESSAGES.full : MESSAGES.inProgress });
     else drawSession(s);
   };
+  client.onEvent = ev => {
+    if (session !== s) return;
+    const line = describeEvent(ev, client.lobby);
+    if (line) hud.say(line);
+  };
   drawSession(s);
 }
 
@@ -100,6 +110,7 @@ function drawSession(s: Session): void {
       renderer.setDream(client.map);
       backdropShown = false;
       input.setLook(0, 0);
+      hud.clear();
     }
     ui.classList.add('playing');
     screen.replaceChildren();
@@ -111,7 +122,7 @@ function drawSession(s: Session): void {
     renderLobby(screen, { code: s.code, players: client.lobby, localId: client.playerId, night: client.night }, {
       start: () => client.requestStart(),
       leave: () => endSession(null),
-    });
+    }, client.lastEnd ? resultPanel(client.lastEnd) : null);
   }
 }
 
@@ -155,6 +166,15 @@ async function joinRoom(rawName: string, rawCode: string): Promise<void> {
   }
 }
 
+// A caught or departed player clicks to switch who they are watching.
+input.onClick = () => {
+  const client = session?.client;
+  const view = client?.view(performance.now());
+  if (!client || !view) return;
+  if (view.players.find(p => p.id === view.localId)?.status === 'active') return;
+  client.spectateId = nextSpectateTarget(view, client.spectateId ?? -1);
+};
+
 const idle = { moveX: 0, moveZ: 0, sprint: false, crouch: false, interact: false, drop: false, throwIt: false, flashlight: false };
 
 // A hidden tab stops drawing frames, and so stops sending inputs: tell the host to stand still first.
@@ -177,6 +197,16 @@ function frame(now: number): void {
     while (owed >= DT) { owed -= DT; client.sendInput(input.sample()); }
     view = client.view(now);
     ui.classList.toggle('unlocked', !input.locked);
+    if (view && client.map) {
+      // Out of the night but friends are still inside: watch one of them.
+      const me = view.players.find(p => p.id === view!.localId);
+      const watched = view.players.find(p => p.id === client.spectateId);
+      if (me && me.status !== 'active' && watched?.status !== 'active') {
+        client.spectateId = nextSpectateTarget(view, client.spectateId ?? -1);
+        view = client.view(now) ?? view;
+      }
+      hud.update(view, client.map);
+    }
   } else {
     owed = 0;
   }

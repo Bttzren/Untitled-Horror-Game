@@ -39,6 +39,10 @@ test('a friend joins by code and both see each other move', async ({ browser }) 
 
   await a.page.getByTestId('start').click();
   for (const p of [a.page, b.page]) await p.waitForFunction(() => (window as any).__dbg?.view()?.players.length === 2);
+  for (const p of [a.page, b.page]) {
+    await expect(p.getByTestId('hud-quota')).toHaveText('0 / 150');
+    await expect(p.getByTestId('hud-timer')).toHaveText(/^[78]:\d\d$/);
+  }
 
   const before = await playerPos(b.page, 0);
   await a.page.locator('#game').click();
