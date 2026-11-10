@@ -12,13 +12,21 @@ interface Peer {
   /** Null until the peer has said hello and been let in. */
   playerId: PlayerId | null;
   name: string;
+  /** Sequence number of the newest input received. */
   lastSeq: number;
-  input: InputCmd | null;
-  /** One-shot actions received since the last step. */
-  edges: { interact: boolean; drop: boolean; throwIt: boolean; flashlight: boolean };
+  /** Sequence number of the newest input applied to the world; what snapshots acknowledge. */
+  appliedSeq: number;
+  /** Inputs waiting to be applied, one per step, oldest first. */
+  queue: InputCmd[];
+  /** The input applied most recently; held (without its one-shot actions) when the queue runs dry. */
+  held: InputCmd | null;
 }
 
-const noEdges = (): Peer['edges'] => ({ interact: false, drop: false, throwIt: false, flashlight: false });
+/** More waiting inputs than this means the player's connection stalled and then burst. */
+const MAX_QUEUE = 8;
+/** After a burst, skip ahead so this many inputs remain. */
+const QUEUE_AFTER_BURST = 3;
+const ONE_SHOTS = ['interact', 'drop', 'throwIt', 'flashlight'] as const;
 
 /**
  * The referee. Runs the rules for everyone, takes inputs from each player and
@@ -47,7 +55,7 @@ export class GameHost {
     const index = this.transports.push(t) - 1;
     const key = (peer: PeerId): string => `${index}:${peer}`;
     t.onConnect(peerId => {
-      this.peers.set(key(peerId), { transport: t, peerId, playerId: null, name: '', lastSeq: 0, input: null, edges: noEdges() });
+      this.peers.set(key(peerId), { transport: t, peerId, playerId: null, name: '', lastSeq: 0, appliedSeq: 0, queue: [], held: null });
     });
     t.onMessage((peerId, msg) => {
       const peer = this.peers.get(key(peerId));
@@ -99,11 +107,13 @@ export class GameHost {
     const cmd = sanitizeInput(raw, peer.lastSeq);
     if (!cmd) return;
     peer.lastSeq = cmd.seq;
-    peer.input = cmd;
-    peer.edges.interact ||= cmd.interact;
-    peer.edges.drop ||= cmd.drop;
-    peer.edges.throwIt ||= cmd.throwIt;
-    peer.edges.flashlight ||= cmd.flashlight;
+    peer.queue.push(cmd);
+    if (peer.queue.length > MAX_QUEUE) {
+      // Skip the oldest inputs, but keep any one-shot action they carried.
+      const skipped = peer.queue.splice(0, peer.queue.length - QUEUE_AFTER_BURST);
+      const next = peer.queue[0]!;
+      for (const old of skipped) for (const k of ONE_SHOTS) next[k] ||= old[k];
+    }
   }
 
   private startNight(): void {
@@ -115,7 +125,7 @@ export class GameHost {
     this._state = 'night';
     this.owed = 0;
     this.sentMemories = new Map();
-    for (const p of members) { p.lastSeq = 0; p.input = null; p.edges = noEdges(); }
+    for (const p of members) { p.lastSeq = 0; p.appliedSeq = 0; p.queue = []; p.held = null; }
     this.broadcast({ t: 'start', seed, night: this._night, quota: this._world.round.quota });
   }
 
@@ -151,9 +161,15 @@ export class GameHost {
     const world = this._world!;
     const inputs = new Map<PlayerId, InputCmd>();
     for (const p of this.members()) {
-      if (!p.input) continue;
-      inputs.set(p.playerId!, { ...p.input, ...p.edges });
-      p.edges = noEdges();
+      const next = p.queue.shift();
+      if (next) {
+        p.held = next;
+        p.appliedSeq = next.seq;
+        inputs.set(p.playerId!, next);
+      } else if (p.held) {
+        // Nothing new arrived: keep moving as before, without repeating one-shot actions.
+        inputs.set(p.playerId!, { ...p.held, interact: false, drop: false, throwIt: false, flashlight: false });
+      }
     }
     stepWorld(world, inputs, DT);
     for (const ev of world.events) this.broadcast({ t: 'event', ev });
@@ -163,7 +179,7 @@ export class GameHost {
 
   private snapshot(world: World): Snapshot {
     const ack: Record<number, number> = {};
-    for (const p of this.members()) ack[p.playerId!] = p.lastSeq;
+    for (const p of this.members()) ack[p.playerId!] = p.appliedSeq;
     const memories = world.memories.filter(m => {
       const text = JSON.stringify(m);
       if (this.sentMemories.get(m.id) === text) return false;
