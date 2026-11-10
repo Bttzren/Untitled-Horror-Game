@@ -64,9 +64,9 @@ function bank(world: World, p: PlayerState, m: MemoryState): void {
 }
 
 /**
- * What the interact key does, in priority order: bank at the Door, then pick
- * up the nearest memory in reach. (Hiding and leaving are added to this list
- * by the hiding and round rules.)
+ * What the interact key does, in priority order: bank at the Door, pick up the
+ * nearest memory in reach, then leave through the open Door. (Hiding is added
+ * to this list by the hiding rules.)
  */
 export function handleInteract(world: World, p: PlayerState): void {
   if (p.status !== 'active') return;
@@ -84,6 +84,12 @@ export function handleInteract(world: World, p: PlayerState): void {
       best.state = 'carried';
       best.carrier = p.id;
       p.carrying = best.id;
+      return;
+    }
+    if (nearDoor && world.round.doorOpen) {
+      p.status = 'left';
+      p.sprinting = false;
+      world.events.push({ type: 'left', player: p.id });
       return;
     }
   }

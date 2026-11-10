@@ -3,6 +3,7 @@ import { CONFIG, quotaFor } from './config';
 import { carriedWeight, dropCarried, handleInteract, stepMemories, throwCarried } from './items';
 import { emitNoise, pruneNoise } from './noise';
 import { movePlayer } from './player';
+import { evaluateEnd, stepRound } from './round';
 import type { InputCmd, PlayerId, World } from './types';
 
 /** Length of one simulation step, in seconds. */
@@ -43,6 +44,7 @@ const EPS = 1e-6;
 
 /** Advances the whole world by one step. Players without an input this step stand still. */
 export function stepWorld(world: World, inputs: ReadonlyMap<PlayerId, InputCmd>, dt: number): void {
+  if (world.round.result) return; // the night is over; nothing changes any more
   world.tick++;
   world.events = [];
   const players = [...world.players].sort((a, b) => a.id - b.id);
@@ -81,6 +83,9 @@ export function stepWorld(world: World, inputs: ReadonlyMap<PlayerId, InputCmd>,
     }
   }
   pruneNoise(world);
+
+  // 6. The night itself.
+  stepRound(world, dt);
 }
 
 export function removePlayer(world: World, id: PlayerId): void {
@@ -88,4 +93,6 @@ export function removePlayer(world: World, id: PlayerId): void {
   if (!p) return;
   dropCarried(world, p, true);
   world.players = world.players.filter(x => x.id !== id);
+  // Their leaving may mean nobody is still inside.
+  evaluateEnd(world);
 }
