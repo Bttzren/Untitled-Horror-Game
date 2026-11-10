@@ -40,3 +40,18 @@ export function twoRoomsMap(): DreamMap {
   map.doorways = [edgeKey(map, { cx: 1, cz: 0 }, { cx: 2, cz: 0 })];
   return map;
 }
+
+/** One open room of 6×6 cells (24 m square) with the Door in the middle. */
+export function hallMap(): DreamMap {
+  const cells: Cell[] = [];
+  for (let cz = 0; cz < 6; cz++) for (let cx = 0; cx < 6; cx++) cells.push({ cx, cz });
+  return {
+    seed: 0, night: 1, width: 6, height: 6,
+    roomAt: new Array<number>(36).fill(0),
+    doorways: [],
+    rooms: [{ id: 0, template: 'door', cells }],
+    door: { x: 12, z: 12 },
+    spawns: [{ x: 13.2, z: 12 }, { x: 10.8, z: 12 }, { x: 12, z: 13.2 }, { x: 12, z: 10.8 }],
+    memories: [], hidingSpots: [], entitySpawns: [{ x: 2, z: 2 }, { x: 22, z: 22 }], lights: [],
+  };
+}
