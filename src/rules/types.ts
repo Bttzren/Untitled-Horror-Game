@@ -71,7 +71,14 @@ export interface EntityState {
   target: Vec2 | null;
   path: Vec2[];
   timer: number;
+  /** Memories whose noise it disregards until the given tick. */
   ignore: { memoryId: number; until: number }[];
+  /** How loud the noise it is following was (its radius); 0 when following nothing. */
+  loud: number;
+  /** Tick of the newest noise it has acted on; older noises are old news. */
+  heardTick: number;
+  /** The memory that made the noise it is following, if it was a memory. */
+  huntMemory: number | null;
 }
 
 export type NoiseSource = { kind: 'player'; id: PlayerId } | { kind: 'memory'; id: number };
