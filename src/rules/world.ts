@@ -1,5 +1,6 @@
 import type { DreamMap } from '../dream/types';
 import { CONFIG, quotaFor } from './config';
+import { ENTITY_DEFS, spawnEntities, stepEntities } from './entities';
 import { carriedWeight, dropCarried, handleInteract, stepMemories, throwCarried } from './items';
 import { emitNoise, pruneNoise } from './noise';
 import { movePlayer } from './player';
@@ -10,7 +11,7 @@ import type { InputCmd, PlayerId, World } from './types';
 export const DT = 1 / CONFIG.tickRate;
 
 export function createWorld(map: DreamMap, players: { id: PlayerId; name: string }[], night: number): World {
-  return {
+  const world: World = {
     tick: 0,
     map,
     players: players.map(({ id, name }) => {
@@ -37,6 +38,8 @@ export function createWorld(map: DreamMap, players: { id: PlayerId; name: string
     },
     events: [],
   };
+  spawnEntities(world);
+  return world;
 }
 
 /** Timers fire this much early so that rounding never skips a beat. */
@@ -62,7 +65,7 @@ export function stepWorld(world: World, inputs: ReadonlyMap<PlayerId, InputCmd>,
   for (const p of players) {
     const cmd = inputs.get(p.id);
     if (!cmd || p.status !== 'active') continue;
-    if (cmd.interact) handleInteract(world, p);
+    if (cmd.interact) handleInteract(world, p, (e, who) => ENTITY_DEFS[e.type].noticesHiding(e, world, who));
     if (cmd.throwIt && p.carrying !== null) throwCarried(world, p);
     else if (cmd.drop && p.carrying !== null) dropCarried(world, p, false);
   }
@@ -83,6 +86,9 @@ export function stepWorld(world: World, inputs: ReadonlyMap<PlayerId, InputCmd>,
     }
   }
   pruneNoise(world);
+
+  // 5. Entities.
+  stepEntities(world, dt);
 
   // 6. The night itself.
   stepRound(world, dt);

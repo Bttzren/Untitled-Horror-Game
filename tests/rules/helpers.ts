@@ -32,3 +32,14 @@ export function step(world: World, inputs: Record<PlayerId, Partial<InputCmd>> =
 
 export const seconds = (s: number): number => Math.round(s / DT);
 export const noises = (events: GameEvent[]): number[] => events.flatMap(e => e.type === 'noise' ? [e.radius] : []);
+
+import { ENTITY_DEFS } from '../../src/rules/entities';
+import type { EntityState, EntityTypeId } from '../../src/rules/types';
+
+/** Adds an awake entity to the world at a position. */
+export function addEntity(world: World, type: EntityTypeId, pos: Vec2): EntityState {
+  const e = ENTITY_DEFS[type].spawn(world.entities.length, { x: pos.x, z: pos.z });
+  e.active = true;
+  world.entities.push(e);
+  return e;
+}

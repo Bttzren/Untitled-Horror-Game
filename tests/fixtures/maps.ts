@@ -35,7 +35,7 @@ export function twoRoomsMap(): DreamMap {
     ],
     door: { x: 2, z: 2 },
     spawns: [{ x: 2, z: 2 }, { x: 3, z: 2 }, { x: 2, z: 1 }, { x: 3, z: 1 }],
-    memories: [], hidingSpots: [], entitySpawns: [{ x: 10, z: 6 }], lights: [],
+    memories: [], hidingSpots: [], entitySpawns: [], lights: [],
   };
   map.doorways = [edgeKey(map, { cx: 1, cz: 0 }, { cx: 2, cz: 0 })];
   return map;
@@ -52,6 +52,6 @@ export function hallMap(): DreamMap {
     rooms: [{ id: 0, template: 'door', cells }],
     door: { x: 12, z: 12 },
     spawns: [{ x: 13.2, z: 12 }, { x: 10.8, z: 12 }, { x: 12, z: 13.2 }, { x: 12, z: 10.8 }],
-    memories: [], hidingSpots: [], entitySpawns: [{ x: 2, z: 2 }, { x: 22, z: 22 }], lights: [],
+    memories: [], hidingSpots: [{ id: 0, kind: 'locker', pos: { x: 2, z: 0.5 } }, { id: 1, kind: 'curtain', pos: { x: 22, z: 0.5 } }], entitySpawns: [], lights: [],
   };
 }

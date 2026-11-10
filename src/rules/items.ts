@@ -1,14 +1,16 @@
-import { cellOf, isOpen } from '../dream/grid';
-import type { Cell } from '../dream/types';
+import { cellCenter, cellOf, isOpen } from '../dream/grid';
+import type { Cell, HidingSpot } from '../dream/types';
 import { dist } from '../shared/vec';
 import { CONFIG, MEMORY_KINDS, type MemoryKind, type WeightClass } from './config';
 import { lineOfSight } from './nav';
 import { emitNoise } from './noise';
-import type { MemoryState, PlayerState, World } from './types';
+import type { EntityState, MemoryState, PlayerState, World } from './types';
 
 const CELL = CONFIG.cell;
 /** How far from a wall a thrown memory comes to rest. */
 const WALL_GAP = 0.3;
+/** How far out of a hiding spot a player steps when leaving it. */
+const STEP_OUT = 0.9;
 /** Timers fire this much early so that rounding never skips a beat. */
 const EPS = 1e-6;
 
@@ -65,11 +67,12 @@ function bank(world: World, p: PlayerState, m: MemoryState): void {
 
 /**
  * What the interact key does, in priority order: bank at the Door, pick up the
- * nearest memory in reach, then leave through the open Door. (Hiding is added
- * to this list by the hiding rules.)
+ * nearest memory in reach, leave through the open Door, then get into a hiding
+ * spot. A hidden player's interact always means "come out".
  */
-export function handleInteract(world: World, p: PlayerState): void {
+export function handleInteract(world: World, p: PlayerState, notices: NoticesHiding = () => false): void {
   if (p.status !== 'active') return;
+  if (p.hiddenIn !== null) { leaveHiding(world, p); return; }
   const nearDoor = dist(p.pos, world.map.door) <= CONFIG.reach.door;
   const held = carried(world, p);
   if (nearDoor && held) { bank(world, p, held); return; }
@@ -93,6 +96,41 @@ export function handleInteract(world: World, p: PlayerState): void {
       return;
     }
   }
+  hide(world, p, notices);
+}
+
+/** Tells the hiding rules whether an entity noticed a player getting into a spot. */
+export type NoticesHiding = (e: EntityState, p: PlayerState) => boolean;
+
+/** Gets into the nearest free hiding spot in reach, silently putting down anything carried. */
+function hide(world: World, p: PlayerState, notices: NoticesHiding): void {
+  let best: HidingSpot | null = null, bestD = Infinity;
+  for (const spot of world.map.hidingSpots) {
+    const d = dist(p.pos, spot.pos);
+    if (d > CONFIG.reach.hide || d >= bestD) continue;
+    if (world.players.some(q => q.status === 'active' && q.hiddenIn === spot.id)) continue;
+    best = spot; bestD = d;
+  }
+  if (!best) return;
+  dropCarried(world, p, true);
+  // Anything that noticed them get in can still find them.
+  p.exposedTo = world.entities.filter(e => e.active && notices(e, p)).map(e => e.id);
+  p.hiddenIn = best.id;
+  p.pos = { x: best.pos.x, z: best.pos.z };
+  p.sprinting = false;
+  p.crouching = false;
+}
+
+/** Steps out of a hiding spot, toward the middle of its cell so as to clear the wall behind it. */
+function leaveHiding(world: World, p: PlayerState): void {
+  const spot = world.map.hidingSpots.find(s => s.id === p.hiddenIn);
+  p.hiddenIn = null;
+  p.exposedTo = [];
+  if (!spot) return;
+  const centre = cellCenter(cellOf(spot.pos));
+  const dx = centre.x - spot.pos.x, dz = centre.z - spot.pos.z;
+  const d = Math.hypot(dx, dz);
+  if (d > 1e-6) p.pos = { x: spot.pos.x + (dx / d) * STEP_OUT, z: spot.pos.z + (dz / d) * STEP_OUT };
 }
 
 /** Moves a thrown memory along one axis; true if a wall stopped it. */
