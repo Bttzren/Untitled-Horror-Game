@@ -1,7 +1,7 @@
 # Co-op Dream Horror — Design Spec
 
 Date: 2026-11-10
-Status: awaiting review
+Status: approved 2026-11-10; expected to change as playtesting goes
 Working title: Untitled Horror Game
 
 ## 1. Purpose
@@ -31,7 +31,7 @@ entities, names, art and audio are original.
 | Threat | No weapons: run, hide, and learn each entity's rule |
 | Platform | Desktop web browser, 3D |
 | Multiplayer | One player hosts in their browser; others connect directly with a room code |
-| Art and audio (v1) | Generated in code; no imported models or sound files |
+| Art and audio (v1) | Generated in code as the base, plus free-licensed models from asset sites, credited in a Credits screen |
 
 ## 3. Gameplay
 
@@ -203,7 +203,9 @@ src/
   view/         What the player sees and hears.
     renderer.ts   Three.js scene built from dream and world state
     audio.ts      Positional and ambient sound, synthesised
-    ui/           Menu, lobby, HUD, spectator view, messages
+    ui/           Menu, credits, lobby, HUD, spectator view, messages
+    credits.ts    Third-party asset list (author, source, licence)
+    assets.ts     Model loading with generated fallbacks
   input/        Keyboard and mouse -> input commands
   main.ts       Wires the parts together
 ```
@@ -265,10 +267,25 @@ src/
   flickering fixtures and each player's flashlight.
 - Audio is synthesised with Web Audio: ambient hum, footsteps, memory
   noises, entity cues, positioned in 3D.
-- Imported models and sound files can replace generated ones later
-  without changing Rules or Connection.
+- Generated geometry is the base and the fallback. Props, memories and
+  entities may use free models (glTF/GLB) downloaded from asset-sharing
+  sites; if a model fails to load, the generated stand-in is shown.
+- Replacing a generated asset with an imported one never changes Rules or
+  Connection.
 
-### 4.7 Privacy
+### 4.7 Third-party assets and credits
+
+- Only assets whose licence allows redistribution in a free game are used:
+  CC0 / public domain and CC-BY. Assets marked non-commercial,
+  no-derivatives, "personal use only" or with no stated licence are not used.
+- Asset files live in `public/assets/`. Every one has an entry in
+  `src/view/credits.ts`: title, author, source URL, licence, and what was
+  changed.
+- The main menu has a **Credits** screen generated from that list. Every
+  asset is listed, including CC0 ones that do not require it.
+- A test fails if a file in `public/assets/` has no credits entry.
+
+### 4.8 Privacy
 
 No accounts and no stored data. Players choose a display name each
 session. The signalling server sees room codes and connection details
@@ -310,7 +327,7 @@ Each step ends with something that runs.
 2. Friends can join a room and see each other move
 3. Memories, the Door, quota, timer and night results
 4. The Usher and the Listener, hiding, getting caught
-5. Lobby, HUD, spectating, sound
+5. Lobby, HUD, spectating, sound, Credits screen, first imported models
 6. Shareable static build, itch.io packaging
 
 ## 8. Not in version 1
@@ -320,7 +337,7 @@ Each step ends with something that runs.
 - Rescuing caught players
 - Built-in or proximity voice chat
 - Shops, upgrades or progression between nights
-- Imported 3D models, textures and recorded audio
+- Recorded audio and imported textures (models are in; see 4.7)
 - Mobile and gamepad controls
 - Joining mid-night, host migration, dedicated servers
 - Accounts, saved progress, leaderboards
