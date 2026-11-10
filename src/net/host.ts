@@ -181,7 +181,8 @@ export class GameHost {
     const ack: Record<number, number> = {};
     for (const p of this.members()) ack[p.playerId!] = p.appliedSeq;
     const memories = world.memories.filter(m => {
-      const text = JSON.stringify(m);
+      // Internal timers tick constantly and are not worth sending; only what a player could see counts as a change.
+      const text = `${m.state}|${m.carrier}|${m.pos.x}|${m.pos.z}`;
       if (this.sentMemories.get(m.id) === text) return false;
       this.sentMemories.set(m.id, text);
       return true;
