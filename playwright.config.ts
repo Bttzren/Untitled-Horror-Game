@@ -22,5 +22,6 @@ export default defineConfig({
   webServer: [
     { command: 'npm run dev -- --port 5173 --strictPort', url: 'http://localhost:5173', reuseExistingServer: true, timeout: 60_000 },
     { command: 'node e2e/signal-server.mjs', url: 'http://127.0.0.1:9000/', reuseExistingServer: true, timeout: 30_000 },
+    { command: 'npm run build && node e2e/static-server.mjs', url: 'http://127.0.0.1:4174/nested/', reuseExistingServer: true, timeout: 120_000 },
   ],
 });

@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "package": "node scripts/package.mjs",
+    "preview": "vite preview"
   },
   "dependencies": {
     "peerjs": "^1.5.5",
@@ -17,6 +19,7 @@
     "@playwright/test": "1.63.0",
     "@types/node": "^22.0.0",
     "@types/three": "^0.187.0",
+    "bestzip": "^4.0.3",
     "peer": "^1.0.2",
     "typescript": "^7.0.2",
     "vite": "^8.3.7",
