@@ -47,7 +47,7 @@ export function moveAlong(e: EntityState, target: Vec2, speed: number, world: Wo
   let budget = speed * dt;
   while (budget > 0 && e.path.length > 0) {
     // Cut corners: head straight for the furthest waypoint that is in plain view.
-    while (e.path.length > 1 && lineOfSight(world.map, e.pos, e.path[1]!)) e.path.shift();
+    while (e.path.length > 1 && wideOpen(world, e.pos, e.path[1]!)) e.path.shift();
     const next = e.path[0]!;
     const dx = next.x - e.pos.x, dz = next.z - e.pos.z;
     const d = Math.hypot(dx, dz);
@@ -62,6 +62,20 @@ export function moveAlong(e: EntityState, target: Vec2, speed: number, world: Wo
     }
   }
   return e.path.length === 0 && dist(e.pos, target) < 1e-6;
+}
+
+/** Body half-width used when deciding whether a shortcut is safe. */
+const SHOULDER = 0.3;
+
+/** Is there room to walk straight from a to b without brushing a wall end? */
+function wideOpen(world: World, a: Vec2, b: Vec2): boolean {
+  const dx = b.x - a.x, dz = b.z - a.z;
+  const d = Math.hypot(dx, dz);
+  if (d < 1e-6) return true;
+  const ox = (-dz / d) * SHOULDER, oz = (dx / d) * SHOULDER;
+  return lineOfSight(world.map, a, b)
+    && lineOfSight(world.map, { x: a.x + ox, z: a.z + oz }, { x: b.x + ox, z: b.z + oz })
+    && lineOfSight(world.map, { x: a.x - ox, z: a.z - oz }, { x: b.x - ox, z: b.z - oz });
 }
 
 /** Catches every findable player within range (and in the same or an adjoining open space). */
