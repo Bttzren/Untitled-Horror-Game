@@ -9,6 +9,7 @@ import { makeRoomCode, normalizeCode } from './net/roomCode';
 import { startTicker } from './net/ticker';
 import type { ViewState } from './rules/types';
 import { DT, createWorld } from './rules/world';
+import { GameAudio } from './view/audio';
 import { Renderer } from './view/renderer';
 import { el } from './view/ui/dom';
 import { Hud, describeEvent, nextSpectateTarget, resultPanel } from './view/ui/hud';
@@ -24,6 +25,9 @@ const screen = el('div');
 ui.append(screen, el('div', { attrs: { id: 'hint' }, text: 'Click to play' }));
 
 const hud = new Hud(ui);
+const audio = new GameAudio();
+// Browsers only allow sound after the player has clicked or pressed a key.
+for (const type of ['pointerdown', 'keydown']) window.addEventListener(type, () => audio.start(), { once: true });
 const renderer = new Renderer(canvas);
 const input = new Input(canvas);
 
@@ -98,6 +102,7 @@ function adopt(client: GameClient, host: GameHost | null, stopTicker: (() => voi
     if (session !== s) return;
     const line = describeEvent(ev, client.lobby);
     if (line) hud.say(line);
+    audio.onEvent(ev);
   };
   drawSession(s);
 }
@@ -210,6 +215,7 @@ function frame(now: number): void {
   } else {
     owed = 0;
   }
+  audio.update(view);
   if (view) {
     renderer.render(view);
   } else {
