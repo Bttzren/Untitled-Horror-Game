@@ -65,3 +65,11 @@
 .result strong { font-weight: normal; font-size: 18px; }
 .result.won strong { color: #c4eab2; }
 .result.lost strong { color: #ffb49c; }
+
+/* Credits */
+.panel.credits { width: min(520px, calc(100vw - 48px)); max-height: calc(100vh - 48px); overflow-y: auto; }
+.credits ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.credits li { padding: 8px 10px; background: #1b1911; border-left: 3px solid #5d5435; }
+.credits h3 { margin: 6px 0 0; font-size: 14px; font-weight: normal; letter-spacing: 0.14em; text-transform: uppercase; color: #a59d7c; }
+.credits .small { font-size: 13px; color: #a59d7c; }
+.credits a { color: #f3e7a8; }

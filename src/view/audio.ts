@@ -1,4 +1,4 @@
-import { CONFIG } from '../rules/config';
+import { CONFIG, MEMORY_KINDS } from '../rules/config';
 import type { GameEvent, ViewState } from '../rules/types';
 import { dist, type Vec2 } from '../shared/vec';
 
@@ -198,7 +198,7 @@ export class GameAudio {
       this.setPhase2(view.round.phase2);
 
       for (const m of view.memories) {
-        if (m.state === 'banked' || (m.kind !== 'phone' && m.kind !== 'musicBox')) continue;
+        if (m.state === 'banked' || !MEMORY_KINDS.find(k => k.id === m.kind)?.noisy) continue;
         const key = `memory-${m.id}`;
         const v = this.voice(key, N.noisyMemory, (c, out) => m.kind === 'phone' ? ring(c, out) : musicBox(c, out, m.id));
         if (v) { alive.add(key); this.place(v, m.pos, 0.5); }

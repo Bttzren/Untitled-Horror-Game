@@ -62,8 +62,12 @@ export interface MemoryKind {
 export const MEMORY_KINDS: readonly MemoryKind[] = [
   { id: 'drawing', name: "Child's drawing", weight: 'light', min: 10, max: 25, noisy: false },
   { id: 'photograph', name: 'Photograph', weight: 'light', min: 10, max: 25, noisy: false },
+  { id: 'toyCar', name: 'Toy car', weight: 'light', min: 10, max: 25, noisy: false },
+  { id: 'teacup', name: 'Teacup', weight: 'light', min: 10, max: 25, noisy: false },
   { id: 'musicBox', name: 'Music box', weight: 'medium', min: 30, max: 60, noisy: true },
   { id: 'phone', name: 'Rotary phone', weight: 'medium', min: 30, max: 60, noisy: true },
+  { id: 'lantern', name: 'Lantern', weight: 'medium', min: 30, max: 60, noisy: false },
+  { id: 'boomBox', name: 'Boom box', weight: 'medium', min: 30, max: 60, noisy: true },
   { id: 'clockFace', name: 'Grandfather clock face', weight: 'heavy', min: 70, max: 120, noisy: false },
   { id: 'television', name: 'Television', weight: 'heavy', min: 70, max: 120, noisy: false },
 ];

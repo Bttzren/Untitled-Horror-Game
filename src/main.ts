@@ -11,6 +11,8 @@ import type { ViewState } from './rules/types';
 import { DT, createWorld } from './rules/world';
 import { GameAudio } from './view/audio';
 import { Renderer } from './view/renderer';
+import { CREDITS } from './view/credits';
+import { renderCredits } from './view/ui/credits';
 import { el } from './view/ui/dom';
 import { Hud, describeEvent, nextSpectateTarget, resultPanel } from './view/ui/hud';
 import { renderLobby } from './view/ui/lobby';
@@ -72,7 +74,7 @@ function drawMenu(): void {
     host: name => void startHosting(name, true),
     join: (name, code) => void joinRoom(name, code),
     solo: name => void startHosting(name, false),
-    credits: () => {},
+    credits: () => renderCredits(screen, drawMenu),
   }, menu);
 }
 
@@ -231,6 +233,8 @@ function frame(now: number): void {
 if (params.has('debug')) {
   (window as unknown as { __dbg: unknown }).__dbg = {
     view: () => session?.client.view(performance.now()) ?? null,
+    credits: CREDITS,
+    renderer,
     input,
     get client() { return session?.client; },
     get host() { return session?.host; },

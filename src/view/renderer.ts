@@ -4,6 +4,7 @@ import { isOpen, roomIdAt } from '../dream/grid';
 import type { Cell, DreamMap, RoomTemplateId } from '../dream/types';
 import { CONFIG, MEMORY_KINDS } from '../rules/config';
 import type { EntityState, MemoryState, PlayerState, ViewState } from '../rules/types';
+import { loadModel } from './assets';
 import { carpet, tiles, wallpaper } from './textures';
 
 export type { ViewState } from '../rules/types';
@@ -198,12 +199,23 @@ export class Renderer {
     const kind = MEMORY_KINDS.find(k => k.id === m.kind);
     const size = kind?.weight === 'heavy' ? 0.7 : kind?.weight === 'medium' ? 0.45 : 0.28;
     const colour = kind?.weight === 'heavy' ? 0x8c6f4a : kind?.weight === 'medium' ? 0x9a4f6b : 0xe9e2c8;
-    const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(size, kind?.weight === 'light' ? 0.04 : size, size * 0.8),
+    const height = kind?.weight === 'light' ? 0.04 : size;
+    // The generated shape shows at once; an imported model replaces it if one exists and loads.
+    const group = new THREE.Group();
+    const shape = new THREE.Mesh(
+      new THREE.BoxGeometry(size, height, size * 0.8),
       new THREE.MeshStandardMaterial({ color: colour, emissive: colour, emissiveIntensity: 0.25, roughness: 0.6 }),
     );
-    mesh.userData.height = kind?.weight === 'light' ? 0.02 : size / 2;
-    return mesh;
+    shape.position.y = height / 2;
+    group.add(shape);
+    void loadModel(`memory:${m.kind}`).then(model => {
+      if (!model) return;
+      model.scale.setScalar(size * 1.25);
+      group.remove(shape);
+      shape.geometry.dispose();
+      group.add(model);
+    });
+    return group;
   }
 
   private entityMesh(e: EntityState): THREE.Object3D {
@@ -269,7 +281,7 @@ export class Renderer {
       mesh.position.set(p.pos.x, 0, p.pos.z);
       mesh.rotation.y = p.yaw;
       mesh.scale.y = p.crouching ? 0.65 : 1;
-      (mesh.getObjectByName('lamp') as THREE.SpotLight).intensity = mesh.visible && p.flashlight ? 30 : 0;
+      (mesh.getObjectByName('lamp') as THREE.SpotLight).intensity = mesh.visible && p.flashlight ? 12 : 0;
     }
 
     this.sync(view.memories, this.memories, m => this.memoryMesh(m));
@@ -281,11 +293,11 @@ export class Renderer {
         // Held out in front of whoever carries it, low enough not to block the view.
         const own = carrier.id === view.cameraId;
         const reach = own ? 0.75 : 0.5;
-        mesh.position.set(carrier.pos.x - Math.sin(carrier.yaw) * reach, own ? 0.95 : 1.0, carrier.pos.z - Math.cos(carrier.yaw) * reach);
+        mesh.position.set(carrier.pos.x - Math.sin(carrier.yaw) * reach, own ? 0.8 : 0.85, carrier.pos.z - Math.cos(carrier.yaw) * reach);
         mesh.rotation.y = carrier.yaw;
       } else {
         const lift = m.state === 'thrown' ? 0.9 : 0;
-        mesh.position.set(m.pos.x, (mesh.userData.height as number) + lift, m.pos.z);
+        mesh.position.set(m.pos.x, lift, m.pos.z);
       }
     }
 
@@ -310,7 +322,7 @@ export class Renderer {
       this.eye += (targetEye - this.eye) * 0.25;
       this.camera.position.set(cam.pos.x, this.eye, cam.pos.z);
       this.camera.rotation.set(cam.pitch, cam.yaw, 0);
-      this.flashlight.intensity = cam.flashlight && cam.status === 'active' ? 45 : 0;
+      this.flashlight.intensity = cam.flashlight && cam.status === 'active' ? 16 : 0;
     }
     this.updateRoomLights(view, time);
     this.gl.render(this.scene, this.camera);
