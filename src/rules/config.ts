@@ -41,7 +41,8 @@ export const CONFIG = {
   noiseMemorySeconds: 1,
   footstepInterval: 0.5,
 
-  usher: { speed: 6, catchRange: 1.0, viewHalfAngleDeg: 50, viewRange: 30 },
+  /** startDelay: seconds it must go unwatched before it moves, so a quick glance away is survivable. */
+  usher: { speed: 6, catchRange: 1.0, viewHalfAngleDeg: 50, viewRange: 30, startDelay: 0.4 },
   listener: { wander: 2, hunt: 4.5, catchRange: 1.2, searchSeconds: 5, ignoreSeconds: 20 },
   /** Seconds within which a second press of E at the open Door leaves the dream. */
   leaveConfirmSeconds: 3,

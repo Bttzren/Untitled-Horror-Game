@@ -72,7 +72,7 @@ test('frozen while observed: position unchanged over 5 s', () => {
 test('unobserved it closes on the nearest detectable player at 6 m/s', () => {
   const { w, usher } = scene();
   face(w.players[0]!, usher.pos, 180);
-  step(w, {}, seconds(1));
+  step(w, {}, seconds(1.4)); // 0.4 s before it stirs, then 1 s of movement
   expect(dist(usher.pos, w.players[0]!.pos)).toBeCloseTo(6, 1);
   expect(usher.mode).toBe('chase');
 });
@@ -82,7 +82,7 @@ test('it picks the nearest player', () => {
   w.players[1]!.pos = { x: 4, z: 4 }; // 8 m away; player 0 is 12 m away
   face(w.players[0]!, usher.pos, 180);
   w.players[1]!.yaw = Math.PI / 2; // facing -X, away from it
-  step(w, {}, seconds(0.5));
+  step(w, {}, seconds(0.9));
   expect(usher.pos.x).toBeLessThan(10);
   expect(usher.pos.z).toBeCloseTo(4, 1);
 });
@@ -94,7 +94,8 @@ test('catches at 1.0 m only while unobserved', () => {
   step(w, {}, seconds(1));
   expect(w.players[0]!.status).toBe('active');
   face(w.players[0]!, usher.pos, 180); // look away
-  const events = step(w);
+  expect(step(w, {}, 6).some(e => e.type === 'caught')).toBe(false); // not at once
+  const events = step(w, {}, 8);
   expect(w.players[0]!.status).toBe('caught');
   expect(events).toContainEqual({ type: 'caught', player: 0, by: 'usher' });
 });
@@ -103,9 +104,9 @@ test('it does not catch from more than 1.0 m', () => {
   const { w, usher } = scene();
   usher.pos = { x: 12, z: 13.5 }; // 2.5 m behind the player's back
   face(w.players[0]!, usher.pos, 180);
-  step(w, {}, 5); // 5 steps at 6 m/s = 1 m: now 1.5 m away
+  step(w, {}, 12 + 4); // 0.4 s before it stirs, then 4 steps at 6 m/s: now about 1.7 m away
   expect(w.players[0]!.status).toBe('active');
-  step(w, {}, 5);
+  step(w, {}, 6);
   expect(w.players[0]!.status).toBe('caught');
 });
 

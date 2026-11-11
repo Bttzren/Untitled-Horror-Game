@@ -256,6 +256,14 @@ export class Renderer {
       const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), pale);
       head.position.y = 2.45;
       head.scale.y = 1.35;
+      // Two shallow hollows where eyes would be.
+      const hollow = new THREE.MeshBasicMaterial({ color: 0x1a1612 });
+      for (const side of [-1, 1]) {
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), hollow);
+        eye.position.set(side * 0.075, 2.5, -0.17);
+        eye.scale.set(1, 1.6, 0.5);
+        g.add(eye);
+      }
       const arm = new THREE.CylinderGeometry(0.035, 0.03, 1.5, 6);
       for (const side of [-1, 1]) {
         const a = new THREE.Mesh(arm, pale);

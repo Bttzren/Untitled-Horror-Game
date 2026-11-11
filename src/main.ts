@@ -91,7 +91,7 @@ function showMenu(notice: MenuNotice | null = null): void {
 }
 
 function drawMenu(): void {
-  ui.classList.remove('playing');
+  ui.classList.remove('playing', 'paused');
   renderMenu(screen, {
     host: name => void startHosting(name, true),
     join: (name, code) => void joinRoom(name, code),
@@ -118,8 +118,13 @@ function adopt(client: GameClient, host: GameHost | null, stopTicker: (() => voi
   if (session) endSession(null);
   const s: Session = { client, host, stopTicker, code, shownMap: null, leaving: false, pauseShown: 'none', entered: false };
   session = s;
+  let known = new Map<number, string>();
   client.onChange = () => {
     if (session !== s || s.leaving) return;
+    // Say so when someone drops out mid-night.
+    const now = new Map(client.lobby.map(p => [p.id, p.name]));
+    if (client.status === 'night') for (const [id, name] of known) if (!now.has(id)) hud.say(`${name} disconnected`);
+    known = now;
     if (client.status === 'closed') endSession({ text: MESSAGES.hostLeft });
     else if (client.status === 'refused') endSession({ text: client.refusedReason === 'full' ? MESSAGES.full : MESSAGES.inProgress });
     else drawSession(s);
@@ -150,7 +155,7 @@ function drawSession(s: Session): void {
     ui.classList.add('playing');
     return;
   }
-  ui.classList.remove('playing');
+  ui.classList.remove('playing', 'paused');
   if (document.pointerLockElement) document.exitPointerLock();
   if (client.status === 'lobby' && client.playerId !== null) {
     renderLobby(screen, { code: s.code, players: client.lobby, localId: client.playerId, night: client.night }, {
@@ -217,12 +222,13 @@ let volume = 0.55;
 function syncPause(s: Session): void {
   if (input.locked) {
     s.entered = true;
-    if (s.pauseShown !== 'none') { s.pauseShown = 'none'; screen.replaceChildren(); }
+    if (s.pauseShown !== 'none') { s.pauseShown = 'none'; screen.replaceChildren(); ui.classList.remove('paused'); }
     return;
   }
   const want = s.entered ? 'paused' : 'first';
   if (s.pauseShown === want) return;
   s.pauseShown = want;
+  ui.classList.add('paused');
   renderPause(screen, { sensitivity: input.sensitivity, volume, first: !s.entered }, {
     resume: () => void input.lock(),
     leave: () => endSession(null),

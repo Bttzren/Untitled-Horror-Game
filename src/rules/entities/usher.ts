@@ -35,7 +35,10 @@ export const usherDef: EntityDef = {
   spawn: (id, pos) => baseEntity(id, 'usher', pos),
   noticesHiding: seesHiding,
   update(e, world, dt) {
-    if (isObserved(world, e)) { e.mode = 'idle'; return; }
+    if (isObserved(world, e)) { e.mode = 'idle'; e.timer = 0; return; }
+    // It takes a moment to realise nobody is watching.
+    e.timer += dt;
+    if (e.timer < CONFIG.usher.startDelay) { e.mode = 'idle'; return; }
     let prey = null, best = Infinity;
     for (const p of detectable(world, e)) {
       const d = dist(p.pos, e.pos);

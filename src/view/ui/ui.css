@@ -7,6 +7,7 @@
   width: min(360px, calc(100vw - 48px)); padding: 28px 28px 22px;
   background: rgba(14, 13, 9, 0.86); border: 1px solid #5d5435; box-shadow: 0 0 80px rgba(0, 0, 0, 0.8);
   display: flex; flex-direction: column; gap: 12px;
+  max-height: calc(100vh - 32px); overflow-y: auto; box-sizing: border-box;
 }
 .panel h1 { margin: 0; font-size: 26px; font-weight: normal; letter-spacing: 0.12em; text-transform: uppercase; color: #f3e7a8; }
 .panel h2 { margin: 0; font-size: 20px; font-weight: normal; letter-spacing: 0.1em; text-transform: uppercase; color: #f3e7a8; }
@@ -37,6 +38,8 @@
 /* In-night overlay */
 #hud { position: absolute; inset: 0; pointer-events: none; display: none; text-shadow: 0 1px 3px #000, 0 0 8px #000; }
 #ui.playing #hud { display: block; }
+/* While the pause menu is up, only the danger vignette shows through. */
+#ui.paused #hud > :not(.dread):not(.flash) { visibility: hidden; }
 #hud .top { position: absolute; top: 18px; left: 22px; font-size: 22px; display: flex; gap: 10px; align-items: baseline; }
 #hud .label { font-size: 13px; text-transform: uppercase; letter-spacing: 0.14em; color: #c9c19c; }
 #hud .timer { margin-left: 18px; font-family: 'Courier New', monospace; font-size: 24px; color: #f3e7a8; }

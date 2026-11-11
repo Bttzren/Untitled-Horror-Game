@@ -73,6 +73,24 @@ test('an entity that wakes at phase 2 is visible for 3 seconds before it acts', 
   step(w, {}, seconds(2.8));
   expect(w.players[0]!.status).toBe('active');
   awake.active = false;
-  step(w, {}, seconds(0.5));
+  step(w, {}, seconds(1));
   expect(w.players[0]!.status).toBe('caught');
+});
+
+import { addEntity } from './rules/helpers';
+
+test('the Usher gives a moment of grace: a glance away shorter than 0.4 s does not let it move', () => {
+  const w = worldWith(hallMap(), 1);
+  const usher = addEntity(w, 'usher', { x: 12, z: 4 });
+  const me = w.players[0]!;
+  me.pos = { x: 12, z: 16 };
+  me.yaw = 0; // facing it
+  step(w, {}, 10);
+  step(w, { 0: { yaw: Math.PI } }, 10); // look away for a third of a second
+  expect(usher.pos).toEqual({ x: 12, z: 4 });
+  step(w, { 0: { yaw: 0 } }, 10); // look back: the grace starts over
+  step(w, { 0: { yaw: Math.PI } }, 10);
+  expect(usher.pos).toEqual({ x: 12, z: 4 });
+  step(w, { 0: { yaw: Math.PI } }, 20); // keep looking away
+  expect(usher.pos.z).toBeGreaterThan(5);
 });

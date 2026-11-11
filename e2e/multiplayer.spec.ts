@@ -81,3 +81,33 @@ test('an unreachable matchmaking server shows a message with a retry button', as
   await expect(page.getByTestId('menu-error')).toHaveText("Couldn't reach the matchmaking server", { timeout: 25_000 });
   await expect(page.getByTestId('retry')).toBeVisible();
 });
+
+test('a caught player spectates their friend; a late joiner is told to wait; a friend dropping out is announced', async ({ browser }) => {
+  const a = await open(browser), b = await open(browser), late = await open(browser);
+  const code = await hostRoom(a.page, 'Ann');
+  await joinRoom(b.page, 'Bo', code);
+  await expect(a.page.getByTestId('lobby-players').locator('li')).toHaveCount(2);
+  await a.page.getByTestId('start').click();
+  for (const p of [a.page, b.page]) await p.waitForFunction(() => (window as any).__dbg?.view()?.players.length === 2);
+
+  // Someone arriving mid-night is refused with a reason.
+  await joinRoom(late.page, 'Cy', code);
+  await expect(late.page.getByTestId('menu-error')).toContainText('A night is in progress');
+
+  // Bo is caught (forced from the host's side), and ends up watching Ann.
+  await a.page.evaluate(() => {
+    const w = (window as any).__dbg.host.world;
+    w.entities.length = 0;
+    const bo = w.players.find((p: any) => p.id === 1);
+    bo.status = 'caught';
+    w.events.push({ type: 'caught', player: 1, by: 'usher' });
+  });
+  await expect(b.page.getByTestId('hud-spectating')).toContainText('Spectating Ann');
+  await b.page.waitForFunction(() => (window as any).__dbg.view().cameraId === 0);
+
+  // Bo closes the tab: Ann is told, and her night carries on.
+  await b.page.close();
+  await expect(a.page.getByTestId('hud-feed')).toContainText('Bo disconnected', { timeout: 30_000 });
+  expect(await a.page.evaluate(() => (window as any).__dbg.view().players.length)).toBe(1);
+  expect(a.errors).toEqual([]);
+});

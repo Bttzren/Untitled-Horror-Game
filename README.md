@@ -13,8 +13,8 @@ Status: first playable version. Expect things to change.
 2. The host starts the night. Everyone appears at the Door inside a dream that is
    laid out differently every night.
 3. Find memories, carry them back to the Door, and press E to bank them.
-4. When the banked value reaches the quota, the Door opens. Press E at the Door
-   with empty hands to leave.
+4. When the banked value reaches the quota, the Door opens. Press E twice at the
+   Door with empty hands to leave (twice, because leaving cannot be undone).
 5. The night lasts 8 minutes. Halfway through, lights start failing and a second
    entity wakes. At zero the dream collapses on anyone still inside.
 
@@ -44,7 +44,7 @@ Lockers and curtains hide you. The Usher still finds you if it watched you get i
 | Drop what you carry | Q |
 | Throw what you carry | Left click |
 | Flashlight | F |
-| Release the mouse | Esc |
+| Pause menu: controls, mouse speed, volume, leave | Esc |
 
 Use C to crouch rather than Ctrl: in most browsers Ctrl+W closes the tab.
 
