@@ -47,11 +47,10 @@ test('a friend joins by code and both see each other move', async ({ browser }) 
   const before = await playerPos(b.page, 0);
   await a.page.locator('#game').click();
   await a.page.waitForFunction(() => document.pointerLockElement !== null);
+  // Hold W until the friend's screen shows the host has walked (frame rates vary a lot on test machines).
   await a.page.keyboard.down('KeyW');
-  await a.page.waitForTimeout(700);
+  await expect.poll(async () => moved(before, await playerPos(b.page, 0)), { timeout: 15_000 }).toBeGreaterThan(0.8);
   await a.page.keyboard.up('KeyW');
-  await b.page.waitForTimeout(300);
-  expect(moved(before, await playerPos(b.page, 0))).toBeGreaterThan(0.8);
   expect(a.errors).toEqual([]);
   expect(b.errors).toEqual([]);
 });

@@ -10,10 +10,8 @@ test('solo: the dream renders and W moves the player', async ({ page }) => {
   await page.locator('#game').click();
   await page.waitForFunction(() => document.pointerLockElement !== null);
   await page.keyboard.down('KeyW');
-  await page.waitForTimeout(600);
+  await expect.poll(async () => moved(before, await playerPos(page, 0)), { timeout: 15_000 }).toBeGreaterThan(0.8);
   await page.keyboard.up('KeyW');
-  const after = await playerPos(page, 0);
-  expect(moved(before, after)).toBeGreaterThan(0.8);
 
   expect(await distinctColours(page)).toBeGreaterThan(8);
 
