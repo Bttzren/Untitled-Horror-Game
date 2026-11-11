@@ -46,6 +46,8 @@ export const CONFIG = {
   listener: { wander: 2, hunt: 4.5, catchRange: 1.2, searchSeconds: 5, ignoreSeconds: 20 },
   /** Seconds within which a second press of E at the open Door leaves the dream. */
   leaveConfirmSeconds: 3,
+  /** Seconds at the start of a night before any entity acts: time to get your bearings. */
+  entityStartDelay: 25,
   /** Seconds an entity woken at phase 2 stands visible before it acts. */
   wakeGraceSeconds: 3,
   entityMinRoomsFromDoor: 3,

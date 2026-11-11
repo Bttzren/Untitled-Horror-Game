@@ -28,6 +28,7 @@ export function spawnEntities(world: World): void {
     if (!pos) return;
     const e = ENTITY_DEFS[type].spawn(i, pos);
     e.active = i === 0 || bothAwake;
+    e.graceUntil = CONFIG.entityStartDelay * CONFIG.tickRate;
     world.entities.push(e);
   });
 }

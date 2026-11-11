@@ -94,3 +94,14 @@ test('the Usher gives a moment of grace: a glance away shorter than 0.4 s does n
   step(w, { 0: { yaw: Math.PI } }, 20); // keep looking away
   expect(usher.pos.z).toBeGreaterThan(5);
 });
+
+test('entities stand still for the first 25 seconds of a night', () => {
+  const w = createWorld(generateDream(4, 3), [{ id: 0, name: 'a' }], 3); // night 3: both awake from the start
+  w.memories = []; // nothing ringing
+  const start = w.entities.map(e => ({ ...e.pos }));
+  step(w, { 0: { moveX: 1, sprint: true } }, seconds(24.5)); // as loud as possible, back turned
+  expect(w.entities.map(e => e.pos)).toEqual(start);
+  expect(w.entities.every(e => e.active)).toBe(true);
+  step(w, { 0: { moveX: 1 } }, seconds(4));
+  expect(w.entities.some((e, i) => e.pos.x !== start[i]!.x || e.pos.z !== start[i]!.z)).toBe(true);
+});
