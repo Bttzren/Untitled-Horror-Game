@@ -1,11 +1,13 @@
 import type { InputCmd } from '../rules/types';
 
-const SENSITIVITY = 0.0022;
+const BASE_SENSITIVITY = 0.0022;
 const MAX_PITCH = Math.PI / 2 - 0.05;
 
 /** Keyboard and mouse, turned into one input command per simulation step. */
 export class Input {
   private keys = new Set<string>();
+  /** Mouse-look speed multiplier, 0.2 to 3. */
+  sensitivity = 1;
   private yaw = 0;
   private pitch = 0;
   private edges = { interact: false, drop: false, throwIt: false, flashlight: false };
@@ -19,8 +21,8 @@ export class Input {
     this.listen(document, 'mousemove', e => {
       if (!this.locked) return;
       const m = e as MouseEvent;
-      this.yaw -= m.movementX * SENSITIVITY;
-      this.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, this.pitch - m.movementY * SENSITIVITY));
+      this.yaw -= m.movementX * BASE_SENSITIVITY * this.sensitivity;
+      this.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, this.pitch - m.movementY * BASE_SENSITIVITY * this.sensitivity));
     });
     this.listen(document, 'mousedown', e => {
       if (!this.locked || (e as MouseEvent).button !== 0) return;
@@ -46,7 +48,8 @@ export class Input {
     return document.pointerLockElement === this.canvas;
   }
 
-  private async lock(): Promise<void> {
+  /** Captures the mouse for looking around. Must be called from a click. */
+  async lock(): Promise<void> {
     try { await this.canvas.requestPointerLock(); } catch { /* the browser refused; the next click retries */ }
   }
 

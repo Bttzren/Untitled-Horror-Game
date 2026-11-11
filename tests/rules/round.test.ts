@@ -55,7 +55,7 @@ test('interact at a closed Door without a memory does nothing', () => {
 test('interact at the open Door without a memory leaves: status left, event left', () => {
   const w = openDoorWorld(2);
   w.players[0]!.pos = { x: 12, z: 13 };
-  const events = step(w, { 0: { interact: true } });
+  const events = step(w, { 0: { interact: true } }, 2); // two presses: leaving needs confirming
   expect(w.players[0]!.status).toBe('left');
   expect(events).toContainEqual({ type: 'left', player: 0 });
   expect(w.round.result).toBeNull(); // player 1 is still inside
@@ -76,7 +76,7 @@ test('at the open Door a memory in reach is picked up before leaving', () => {
   expect(w.players[0]!).toMatchObject({ status: 'active', carrying: 0 });
   step(w, { 0: { interact: true } });
   expect(w.round.banked).toBe(w.round.quota + 20);
-  step(w, { 0: { interact: true } });
+  step(w, { 0: { interact: true } }, 2);
   expect(w.players[0]!.status).toBe('left');
 });
 
@@ -86,7 +86,7 @@ test('success when every uncaught player has left', () => {
   step(w);
   expect(w.round.result).toBeNull();
   w.players[0]!.pos = { x: 12, z: 13 };
-  step(w, { 0: { interact: true } });
+  step(w, { 0: { interact: true } }, 2);
   expect(w.round.result).toBe('success');
 });
 
@@ -124,7 +124,7 @@ test('at zero everyone still inside is caught by collapse', () => {
 test('at zero: quota met and someone left is success; quota unmet is fail; quota met but nobody left is fail', () => {
   const left = openDoorWorld(2);
   left.players[0]!.pos = { x: 12, z: 13 };
-  step(left, { 0: { interact: true } });
+  step(left, { 0: { interact: true } }, 2);
   left.round.timeLeft = DT / 2;
   step(left);
   expect(left.round.result).toBe('success');
@@ -154,7 +154,7 @@ test('once a result is set the world stops changing', () => {
 test('removing the last active player while another has left ends the night as success', () => {
   const w = openDoorWorld(2);
   w.players[0]!.pos = { x: 12, z: 13 };
-  step(w, { 0: { interact: true } });
+  step(w, { 0: { interact: true } }, 2);
   removePlayer(w, 1);
   expect(w.round.result).toBe('success');
 });

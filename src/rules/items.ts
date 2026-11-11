@@ -90,6 +90,12 @@ export function handleInteract(world: World, p: PlayerState, notices: NoticesHid
       return;
     }
     if (nearDoor && world.round.doorOpen) {
+      // Leaving cannot be undone, so it takes two presses.
+      if (p.leaveArmedUntil === 0) {
+        p.leaveArmedUntil = world.tick + CONFIG.leaveConfirmSeconds * CONFIG.tickRate;
+        return;
+      }
+      p.leaveArmedUntil = 0;
       p.status = 'left';
       world.round.someoneLeft = true;
       p.sprinting = false;

@@ -45,7 +45,7 @@ test('a friend joins by code and both see each other move', async ({ browser }) 
   }
 
   const before = await playerPos(b.page, 0);
-  await a.page.locator('#game').click();
+  await a.page.getByTestId('resume').click();
   await a.page.waitForFunction(() => document.pointerLockElement !== null);
   // Hold W until the friend's screen shows the host has walked (frame rates vary a lot on test machines).
   await a.page.keyboard.down('KeyW');

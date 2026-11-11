@@ -23,6 +23,8 @@ interface Peer {
   held: InputCmd | null;
   /** Allowance of extra inputs that may be applied to work off a backlog. */
   catchUp: number;
+  /** Steps in a row with no new input to apply. */
+  starved: number;
 }
 
 /** What a player could see of a memory; a change here is worth sending. */
@@ -37,6 +39,8 @@ const MAX_BACKLOG = 2;
 /** Extra inputs a player may have applied to catch up: this many in a burst, refilling at 3 a second. */
 const CATCH_UP_MAX = 8;
 const CATCH_UP_REFILL = 0.1;
+/** After this many steps without a new input (half a second), a player stops moving. */
+const STARVED_STEPS = 15;
 const ONE_SHOTS = ['interact', 'drop', 'throwIt', 'flashlight'] as const;
 
 /**
@@ -66,7 +70,7 @@ export class GameHost {
     const index = this.transports.push(t) - 1;
     const key = (peer: PeerId): string => `${index}:${peer}`;
     t.onConnect(peerId => {
-      this.peers.set(key(peerId), { transport: t, peerId, playerId: null, name: '', lastSeq: 0, appliedSeq: 0, queue: [], held: null, catchUp: CATCH_UP_MAX });
+      this.peers.set(key(peerId), { transport: t, peerId, playerId: null, name: '', lastSeq: 0, appliedSeq: 0, queue: [], held: null, catchUp: CATCH_UP_MAX, starved: 0 });
     });
     t.onMessage((peerId, msg) => {
       const peer = this.peers.get(key(peerId));
@@ -137,7 +141,7 @@ export class GameHost {
     this.owed = 0;
     // Clients build the opening memories from the seed themselves, so only later changes need sending.
     this.sentMemories = new Map(this._world.memories.map(m => [m.id, memoryKey(m)]));
-    for (const p of members) { p.lastSeq = 0; p.appliedSeq = 0; p.queue = []; p.held = null; p.catchUp = CATCH_UP_MAX; }
+    for (const p of members) { p.lastSeq = 0; p.appliedSeq = 0; p.queue = []; p.held = null; p.catchUp = CATCH_UP_MAX; p.starved = 0; }
     this.broadcast({ t: 'start', seed, night: this._night, quota: this._world.round.quota });
   }
 
@@ -189,6 +193,10 @@ export class GameHost {
         p.held = next;
         p.appliedSeq = next.seq;
         inputs.set(p.playerId!, next);
+        p.starved = 0;
+      } else if (p.held && ++p.starved > STARVED_STEPS) {
+        // Nothing has arrived for a while: the connection has probably died. Stand still.
+        inputs.set(p.playerId!, { ...p.held, moveX: 0, moveZ: 0, sprint: false, interact: false, drop: false, throwIt: false, flashlight: false });
       } else if (p.held) {
         // Nothing new arrived: keep moving as before, without repeating one-shot actions.
         inputs.set(p.playerId!, { ...p.held, interact: false, drop: false, throwIt: false, flashlight: false });

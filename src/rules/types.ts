@@ -44,6 +44,8 @@ export interface PlayerState {
   status: 'active' | 'caught' | 'left';
   /** Seconds of movement since the last footstep noise. */
   stepTimer: number;
+  /** Pressed E once at the open Door: a second press before this tick leaves the dream. 0 when not armed. */
+  leaveArmedUntil: number;
 }
 
 export interface MemoryState {
@@ -79,6 +81,8 @@ export interface EntityState {
   heardTick: number;
   /** The memory that made the noise it is following, if it was a memory. */
   huntMemory: number | null;
+  /** Just woken: it can be seen, but does nothing until this tick. */
+  graceUntil: number;
 }
 
 export type NoiseSource = { kind: 'player'; id: PlayerId } | { kind: 'memory'; id: number };
@@ -103,6 +107,7 @@ export type GameEvent =
   | { type: 'left'; player: PlayerId }
   | { type: 'noise'; pos: Vec2; radius: number }
   | { type: 'phase2' }
+  | { type: 'woke'; entity: EntityTypeId }
   | { type: 'doorOpen' };
 
 export interface World {

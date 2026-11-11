@@ -23,7 +23,7 @@ export function createWorld(map: DreamMap, players: { id: PlayerId; name: string
         stamina: CONFIG.staminaSeconds, winded: false,
         crouching: false, sprinting: false, flashlight: true,
         carrying: null, hiddenIn: null, exposedTo: [],
-        status: 'active', stepTimer: 0,
+        status: 'active', stepTimer: 0, leaveArmedUntil: 0,
       };
     }),
     memories: map.memories.map(m => ({
@@ -59,6 +59,12 @@ export function stepWorld(world: World, inputs: ReadonlyMap<PlayerId, InputCmd>,
     if (!cmd) continue;
     movePlayer(p, cmd, world.map, carriedWeight(world, p), dt);
     if (cmd.flashlight && p.status === 'active') p.flashlight = !p.flashlight;
+  }
+  // Walking away from the Door, or waiting too long, cancels a half-made decision to leave.
+  for (const p of players) {
+    if (p.leaveArmedUntil === 0) continue;
+    const away = Math.hypot(p.pos.x - world.map.door.x, p.pos.z - world.map.door.z) > CONFIG.reach.door;
+    if (away || world.tick > p.leaveArmedUntil) p.leaveArmedUntil = 0;
   }
 
   // 2. Actions, lowest player id first, so two players reaching for one thing resolve the same way every time.

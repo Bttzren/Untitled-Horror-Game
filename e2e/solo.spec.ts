@@ -7,7 +7,7 @@ test('solo: the dream renders and W moves the player', async ({ page }) => {
   await page.waitForFunction(() => (window as any).__dbg?.view()?.players.length === 1);
   const before = await playerPos(page, 0);
 
-  await page.locator('#game').click();
+  await page.getByTestId('resume').click();
   await page.waitForFunction(() => document.pointerLockElement !== null);
   await page.keyboard.down('KeyW');
   await expect.poll(async () => moved(before, await playerPos(page, 0)), { timeout: 15_000 }).toBeGreaterThan(0.8);
@@ -65,10 +65,47 @@ test('solo: banking the quota opens the Door and leaving wins the night', async 
     w.entities.length = 0;
     w.memories.forEach((m: any) => { m.state = 'banked'; });
   });
-  await page.locator('#game').click();
+  await page.getByTestId('resume').click();
   await page.waitForFunction(() => document.pointerLockElement !== null);
   await expect(page.getByTestId('hud-prompt')).toHaveText('E — leave the dream');
   await page.keyboard.press('KeyE');
+  await expect(page.getByTestId('hud-prompt')).toHaveText('E again — leave for good');
+  await page.keyboard.press('KeyE');
   await expect(page.getByTestId('result')).toContainText('You woke up');
   await expect(page.getByTestId('lobby-night')).toHaveText('Night 2');
+});
+
+test('the pause menu appears when the mouse is released, and Leave returns to the main menu', async ({ page }) => {
+  await page.goto('/?debug&solo&seed=5');
+  await page.waitForFunction(() => (window as any).__dbg?.view()?.players.length === 1);
+  await expect(page.getByTestId('pause')).toContainText('The dream begins');
+  await page.getByTestId('resume').click();
+  await page.waitForFunction(() => document.pointerLockElement !== null);
+  await expect(page.getByTestId('pause')).toHaveCount(0);
+  await page.evaluate(() => document.exitPointerLock());
+  await expect(page.getByTestId('pause')).toContainText('Paused');
+  await expect(page.getByTestId('sensitivity')).toBeVisible();
+  await page.getByTestId('volume').fill('0.2');
+  await page.getByTestId('leave-night').click();
+  await expect(page.getByTestId('host')).toBeVisible();
+  await expect(page.getByTestId('pause')).toHaveCount(0);
+});
+
+test('a memory can be carried to the Door and banked with the real keys', async ({ page }) => {
+  await page.goto('/?debug&solo&seed=5');
+  await page.waitForFunction(() => (window as any).__dbg?.view()?.players.length === 1);
+  await page.evaluate(() => {
+    const w = (window as any).__dbg.host.world;
+    w.entities.length = 0;
+    const p = w.players[0], m = w.memories[0];
+    m.pos = { x: p.pos.x, z: p.pos.z - 1 }; // just in front of the player, who stands by the Door
+  });
+  await page.getByTestId('resume').click();
+  await page.waitForFunction(() => document.pointerLockElement !== null);
+  await expect(page.getByTestId('hud-prompt')).toContainText('E — take');
+  await page.keyboard.press('KeyE');
+  await expect(page.getByTestId('hud-prompt')).toContainText('E — bank');
+  await page.keyboard.press('KeyE');
+  await expect(page.getByTestId('hud-quota')).not.toHaveText('0 / 150');
+  await expect(page.getByTestId('hud-feed')).toContainText('banked a memory');
 });

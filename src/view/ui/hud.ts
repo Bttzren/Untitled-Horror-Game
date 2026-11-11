@@ -31,7 +31,8 @@ export function promptFor(view: ViewState, map: DreamMap): string | null {
     }
     if (best) return `E — take ${best.name}`;
     if (nearDoor) {
-      return view.round.doorOpen ? 'E — leave the dream' : `Door is closed — ${Math.max(0, view.round.quota - view.round.banked)} more needed`;
+      if (view.round.doorOpen) return me.leaveArmedUntil > 0 ? 'E again — leave for good' : 'E — leave the dream';
+      return `Door is closed — ${Math.max(0, view.round.quota - view.round.banked)} more needed`;
     }
   }
   const free = map.hidingSpots.some(s =>
@@ -51,10 +52,13 @@ export function describeEvent(ev: GameEvent, names: LobbyPlayer[]): string | nul
   const name = (id: PlayerId): string => names.find(p => p.id === id)?.name ?? 'Someone';
   switch (ev.type) {
     case 'banked': return `${name(ev.player)} banked a memory (+${ev.value})`;
-    case 'caught': return ev.by === 'collapse' ? `${name(ev.player)} was lost in the collapse` : `${name(ev.player)} was taken`;
+    case 'caught':
+      if (ev.by === 'collapse') return `${name(ev.player)} was lost in the collapse`;
+      return `${name(ev.player)} was taken by the ${ev.by === 'usher' ? 'Usher' : 'Listener'}`;
     case 'left': return `${name(ev.player)} left the dream`;
     case 'doorOpen': return 'Quota met — the Door is open';
     case 'phase2': return 'The dream is coming apart';
+    case 'woke': return 'Something else has woken up';
     default: return null;
   }
 }
@@ -77,10 +81,14 @@ export class Hud {
   private readonly staminaFill = el('div', { class: 'fill' });
   private readonly spectating = el('div', { class: 'spectating', testid: 'hud-spectating' });
   private readonly feed = el('div', { class: 'feed', testid: 'hud-feed' });
+  private readonly dreadEl = el('div', { class: 'dread' });
+  private readonly flash = el('div', { class: 'flash' });
   readonly root: HTMLElement;
 
   constructor(parent: HTMLElement) {
     this.root = el('div', { attrs: { id: 'hud' } }, [
+      this.dreadEl,
+      this.flash,
       el('div', { class: 'top' }, [el('span', { class: 'label', text: 'Banked ' }), this.quota, this.timer]),
       this.feed,
       el('div', { class: 'crosshair' }),
@@ -112,6 +120,18 @@ export class Hud {
     }
   }
 
+  /** Darkens and reddens the edges of the screen as danger nears (0 to 1). */
+  setDread(level: number): void {
+    this.dreadEl.style.opacity = String(Math.min(1, Math.max(0, level)));
+  }
+
+  /** A hard red flash: the local player has just been caught. */
+  flashCaught(): void {
+    this.flash.classList.remove('go');
+    void this.flash.offsetWidth; // restart the animation
+    this.flash.classList.add('go');
+  }
+
   /** Adds a line to the event feed; it fades out by itself. */
   say(text: string): void {
     const line = el('div', { class: 'line', text });
@@ -123,4 +143,13 @@ export class Hud {
   clear(): void {
     this.feed.replaceChildren();
   }
+}
+
+/** How close the nearest awake entity is to the local player: 0 beyond 12 m, 1 at 2 m or less. */
+export function dreadLevel(view: ViewState): number {
+  const me = view.players.find(p => p.id === view.localId);
+  if (!me || me.status !== 'active') return 0;
+  let nearest = Infinity;
+  for (const e of view.entities) if (e.active) nearest = Math.min(nearest, dist(e.pos, me.pos));
+  return Math.min(1, Math.max(0, (12 - nearest) / 10));
 }

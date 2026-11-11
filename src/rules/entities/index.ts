@@ -35,7 +35,12 @@ export function spawnEntities(world: World): void {
 /** Wakes sleeping entities once phase 2 has begun, then lets every awake entity act. */
 export function stepEntities(world: World, dt: number): void {
   for (const e of world.entities) {
-    if (!e.active && world.round.phase2) e.active = true;
-    if (e.active) ENTITY_DEFS[e.type].update(e, world, dt);
+    if (!e.active && world.round.phase2) {
+      // It appears, and everyone is told, a few seconds before it starts to act.
+      e.active = true;
+      e.graceUntil = world.tick + CONFIG.wakeGraceSeconds * CONFIG.tickRate;
+      world.events.push({ type: 'woke', entity: e.type });
+    }
+    if (e.active && world.tick >= e.graceUntil) ENTITY_DEFS[e.type].update(e, world, dt);
   }
 }

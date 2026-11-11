@@ -25,6 +25,11 @@ export class Renderer {
   private readonly dream = new THREE.Group();
   private readonly actors = new THREE.Group();
   private readonly roomLights: THREE.PointLight[] = [];
+  /** Faint light from everywhere, so unlit corners are dim rather than black. */
+  private readonly sky = new THREE.HemisphereLight(0xfff4d0, 0x302a18, 0.12);
+  private haloTexture: THREE.Texture | null = null;
+  private bob = 0;
+  private lastCam: { x: number; z: number } | null = null;
   private readonly flashlight = new THREE.SpotLight(0xfff2d6, 0, 22, 0.5, 0.45, 1.2);
   private readonly players = new Map<number, THREE.Object3D>();
   private readonly memories = new Map<number, THREE.Object3D>();
@@ -40,8 +45,8 @@ export class Renderer {
     this.gl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.gl.toneMapping = THREE.ACESFilmicToneMapping;
     this.scene.background = new THREE.Color(0x0b0b08);
-    this.scene.fog = new THREE.FogExp2(0x0b0b08, 0.045);
-    this.scene.add(new THREE.HemisphereLight(0xfff4d0, 0x302a18, 0.2));
+    this.scene.fog = new THREE.FogExp2(0x0b0b08, 0.06);
+    this.scene.add(this.sky);
     this.scene.add(this.dream, this.actors, this.camera);
     this.camera.rotation.order = 'YXZ';
     this.camera.add(this.flashlight, this.flashlight.target);
@@ -109,6 +114,7 @@ export class Renderer {
         for (const [n, wx, wz, rot] of sides) {
           if (!isOpen(map, c, n)) {
             push(look.wall, new THREE.PlaneGeometry(CELL, WALL_H).rotateY(rot).translate(wx, WALL_H / 2, wz));
+            push(trim, new THREE.BoxGeometry(CELL, 0.14, 0.06).rotateY(rot).translate(wx, 0.07, wz)); // skirting board
           } else if (roomIdAt(map, n) !== room.id) {
             // A doorway: wall above the opening, and a frame on this side.
             push(look.wall, new THREE.PlaneGeometry(CELL, WALL_H - DOOR_H).rotateY(rot).translate(wx, (WALL_H + DOOR_H) / 2, wz));
@@ -208,6 +214,14 @@ export class Renderer {
     );
     shape.position.y = height / 2;
     group.add(shape);
+    // A faint glow, so memories can be spotted across a dim room.
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: this.halo(), color: 0xfff1c2, transparent: true, opacity: 0.4, depthWrite: false, blending: THREE.AdditiveBlending,
+    }));
+    halo.scale.setScalar(size * 2.6);
+    halo.position.y = Math.max(height / 2, 0.12);
+    halo.name = 'halo';
+    group.add(halo);
     void loadModel(`memory:${m.kind}`).then(model => {
       if (!model) return;
       model.scale.setScalar(size * 1.25);
@@ -216,6 +230,21 @@ export class Renderer {
       group.add(model);
     });
     return group;
+  }
+
+  private halo(): THREE.Texture {
+    if (this.haloTexture) return this.haloTexture;
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d')!;
+    const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, 'rgba(255,255,255,0.9)');
+    grad.addColorStop(0.35, 'rgba(255,255,255,0.25)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 64, 64);
+    this.haloTexture = new THREE.CanvasTexture(c);
+    return this.haloTexture;
   }
 
   private entityMesh(e: EntityState): THREE.Object3D {
@@ -277,11 +306,13 @@ export class Renderer {
     this.sync(view.players, this.players, p => this.playerMesh(p));
     for (const p of view.players) {
       const mesh = this.players.get(p.id)!;
-      mesh.visible = p.status === 'active' && p.hiddenIn === null && p.id !== view.cameraId;
-      mesh.position.set(p.pos.x, 0, p.pos.z);
+      // Hidden bodies are moved out of sight rather than switched off: switching a light off and on makes the
+      // graphics card rebuild its shaders, which stutters at exactly the moments someone hides or is caught.
+      const shown = p.status === 'active' && p.hiddenIn === null && p.id !== view.cameraId;
+      mesh.position.set(p.pos.x, shown ? 0 : -500, p.pos.z);
       mesh.rotation.y = p.yaw;
       mesh.scale.y = p.crouching ? 0.65 : 1;
-      (mesh.getObjectByName('lamp') as THREE.SpotLight).intensity = mesh.visible && p.flashlight ? 12 : 0;
+      (mesh.getObjectByName('lamp') as THREE.SpotLight).intensity = shown && p.flashlight ? 12 : 0;
     }
 
     this.sync(view.memories, this.memories, m => this.memoryMesh(m));
@@ -299,6 +330,8 @@ export class Renderer {
         const lift = m.state === 'thrown' ? 0.9 : 0;
         mesh.position.set(m.pos.x, lift, m.pos.z);
       }
+      const halo = mesh.getObjectByName('halo') as THREE.Sprite | undefined;
+      if (halo) halo.material.opacity = m.state === 'ground' ? 0.32 + Math.sin(time * 2 + m.id) * 0.12 : 0;
     }
 
     this.sync(view.entities, this.entities, e => this.entityMesh(e));
@@ -307,6 +340,8 @@ export class Renderer {
       mesh.visible = e.active;
       mesh.position.set(e.pos.x, 0, e.pos.z);
       mesh.rotation.y = e.yaw;
+      // The Usher always faces whoever is looking.
+      if (e.type === 'usher' && cam) mesh.rotation.y = Math.atan2(-(cam.pos.x - e.pos.x), -(cam.pos.z - e.pos.z));
       if (e.type === 'listener') {
         const body = mesh.getObjectByName('body') as THREE.Mesh;
         body.position.y = 0.55 + Math.sin(time * 1.3 + e.id) * 0.06;
@@ -320,7 +355,11 @@ export class Renderer {
     if (cam) {
       const targetEye = cam.crouching ? CONFIG.crouchEyeHeight : CONFIG.eyeHeight;
       this.eye += (targetEye - this.eye) * 0.25;
-      this.camera.position.set(cam.pos.x, this.eye, cam.pos.z);
+      // A slight bob with each step.
+      if (this.lastCam) this.bob += Math.min(0.5, Math.hypot(cam.pos.x - this.lastCam.x, cam.pos.z - this.lastCam.z));
+      this.lastCam = { x: cam.pos.x, z: cam.pos.z };
+      const sway = cam.status === 'active' && cam.hiddenIn === null ? Math.sin(this.bob * 4.4) * 0.03 : 0;
+      this.camera.position.set(cam.pos.x, this.eye + sway, cam.pos.z);
       this.camera.rotation.set(cam.pitch, cam.yaw, 0);
       this.flashlight.intensity = cam.flashlight && cam.status === 'active' ? 16 : 0;
     }
@@ -332,17 +371,20 @@ export class Renderer {
   private updateRoomLights(view: ViewState, time: number): void {
     const phase2 = view.round.phase2;
     this.lightSpots.forEach((spot, i) => {
-      // In phase 2 a fixed half of the lights die and the rest flicker.
-      const dead = phase2 && i % 2 === 1;
+      // Some lights are dead from the start, leaving pools of dark. In phase 2 most die and the rest flicker.
+      const dead = phase2 ? i % 3 !== 0 : i % 3 === 2;
       const flicker = phase2 && Math.sin(time * (7 + (i % 5)) + i * 2.1) > 0.82;
       spot.on = !dead && !flicker;
       (spot.panel.material as THREE.MeshBasicMaterial).color.setHex(spot.on ? 0xfff6dc : 0x2a2820);
     });
+    // The dream turns darker and redder as it comes apart.
+    this.sky.intensity += ((phase2 ? 0.05 : 0.12) - this.sky.intensity) * 0.02;
+    this.sky.color.setHex(phase2 ? 0xff9a7a : 0xfff4d0);
     const here = this.camera.position;
     const nearest = this.lightSpots.filter(s => s.on).sort((a, b) => a.pos.distanceToSquared(here) - b.pos.distanceToSquared(here));
     this.roomLights.forEach((light, i) => {
       const spot = nearest[i];
-      light.intensity = spot ? (phase2 ? 6 : 10) : 0;
+      light.intensity = spot ? (phase2 ? 8 : 9) : 0;
       if (spot) light.position.copy(spot.pos);
     });
   }

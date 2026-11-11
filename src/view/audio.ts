@@ -38,6 +38,9 @@ export class GameAudio {
   private usherAt = new Map<number, Vec2>();
   private lastClick = 0;
   private phase2 = false;
+  private volume = 0.55;
+  private dread = 0;
+  private nextBeat = 0;
 
   /** Must be called from a click or key press: browsers only allow sound after one. */
   start(): void {
@@ -46,7 +49,7 @@ export class GameAudio {
       const ctx = new AudioContext();
       this.ctx = ctx;
       this.master = ctx.createGain();
-      this.master.gain.value = 0.55;
+      this.master.gain.value = this.volume;
       this.master.connect(ctx.destination);
       const len = ctx.sampleRate;
       this.noiseBuffer = ctx.createBuffer(1, len, ctx.sampleRate);
@@ -77,6 +80,27 @@ export class GameAudio {
     });
     filter.connect(gain).connect(this.master!);
     this.hum = { gain, osc };
+  }
+
+  /** Master volume, 0 to 1. */
+  setVolume(v: number): void {
+    this.volume = Math.min(1, Math.max(0, v));
+    if (this.master && this.ctx) this.master.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.05);
+  }
+
+  /** How close danger is, 0 to 1. Drives a heartbeat that quickens as something nears. */
+  setDread(level: number): void {
+    this.dread = Math.min(1, Math.max(0, level));
+  }
+
+  private heartbeat(): void {
+    const ctx = this.ctx;
+    if (!ctx || this.dread < 0.08) return;
+    const t = ctx.currentTime;
+    if (t < this.nextBeat) return;
+    this.nextBeat = t + 1.1 - this.dread * 0.65;
+    // Two soft thumps: lub-dub.
+    this.tone(null, 1, [[58, 0, 0.16], [50, 0.17, 0.2]], 'sine', 0.25 + this.dread * 0.5);
   }
 
   setListener(pos: Vec2, yaw: number): void {
@@ -157,6 +181,7 @@ export class GameAudio {
         break;
       case 'banked': this.tone(null, 1, [[660, 0, 0.25], [990, 0.12, 0.4]], 'sine', 0.25); break;
       case 'doorOpen': this.tone(null, 1, [[330, 0, 1.2], [415, 0.15, 1.2], [495, 0.3, 1.4], [660, 0.45, 1.6]], 'sine', 0.2); break;
+      case 'woke': this.tone(null, 1, [[73, 0, 1.6], [77, 0.05, 1.6]], 'sawtooth', 0.3); break;
       case 'phase2': this.tone(null, 1, [[55, 0, 2.5], [58, 0, 2.5]], 'sawtooth', 0.35); break;
       case 'caught': this.tone(null, 1, [[220, 0, 0.5], [147, 0.1, 0.7], [104, 0.25, 1.2]], 'sawtooth', 0.3); break;
       case 'left': this.tone(null, 1, [[495, 0, 0.3], [330, 0.15, 0.5]], 'sine', 0.2); break;
@@ -192,6 +217,8 @@ export class GameAudio {
     const t = ctx.currentTime;
     this.hum.gain.gain.setTargetAtTime(view ? (this.phase2 ? 0.1 : 0.16) : 0.05, t, 0.5);
     const alive = new Set<string>();
+    if (!view) { this.usherAt.clear(); this.dread = 0; }
+    this.heartbeat();
     if (view) {
       const cam = view.players.find(p => p.id === view.cameraId);
       if (cam) this.setListener(cam.pos, cam.yaw);
@@ -199,8 +226,9 @@ export class GameAudio {
 
       for (const m of view.memories) {
         if (m.state === 'banked' || !MEMORY_KINDS.find(k => k.id === m.kind)?.noisy) continue;
+        if (dist(m.pos, this.ear) > N.noisyMemory * 1.6) continue; // out of earshot: no need to keep a voice running
         const key = `memory-${m.id}`;
-        const v = this.voice(key, N.noisyMemory, (c, out) => m.kind === 'phone' ? ring(c, out) : musicBox(c, out, m.id));
+        const v = this.voice(key, N.noisyMemory, (c, out) => m.kind === 'phone' ? ring(c, out) : m.kind === 'boomBox' ? boomBox(c, out) : musicBox(c, out, m.id));
         if (v) { alive.add(key); this.place(v, m.pos, 0.5); }
       }
       for (const e of view.entities) {
@@ -276,6 +304,39 @@ function musicBox(ctx: AudioContext, out: AudioNode, seed: number): () => void {
     step++;
   };
   const id = setInterval(play, 340);
+  return () => { stopped = true; clearInterval(id); };
+}
+
+/** A boom box left playing: a muffled four-on-the-floor beat with a bass note. */
+function boomBox(ctx: AudioContext, out: AudioNode): () => void {
+  let step = 0, stopped = false;
+  const bass = [55, 55, 65.4, 49];
+  const play = (): void => {
+    if (stopped) return;
+    const t = ctx.currentTime;
+    const kick = ctx.createOscillator();
+    kick.frequency.setValueAtTime(140, t);
+    kick.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+    const kg = ctx.createGain();
+    kg.gain.setValueAtTime(0.5, t);
+    kg.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    kick.connect(kg).connect(out);
+    kick.start(t); kick.stop(t + 0.2);
+    if (step % 2 === 1) {
+      const b = ctx.createOscillator();
+      b.type = 'square';
+      b.frequency.value = bass[(step >> 1) % bass.length]!;
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass'; f.frequency.value = 300;
+      const bg = ctx.createGain();
+      bg.gain.setValueAtTime(0.12, t);
+      bg.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+      b.connect(f).connect(bg).connect(out);
+      b.start(t); b.stop(t + 0.25);
+    }
+    step++;
+  };
+  const id = setInterval(play, 260);
   return () => { stopped = true; clearInterval(id); };
 }
 

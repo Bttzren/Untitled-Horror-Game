@@ -1,6 +1,6 @@
 #ui { font-family: Georgia, 'Times New Roman', serif; color: #ece6d0; }
 #ui > * { pointer-events: auto; }
-#ui.playing > .panel { display: none; }
+#ui.playing .panel:not(.pause) { display: none; }
 
 .panel {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
@@ -33,12 +33,6 @@
 .lobby ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
 .lobby li { padding: 6px 10px; background: #1b1911; border-left: 3px solid #cdb96a; }
 .night { color: #a59d7c; text-transform: uppercase; letter-spacing: 0.15em; font-size: 13px; }
-
-#hint {
-  position: absolute; left: 50%; bottom: 18%; transform: translateX(-50%); padding: 10px 18px;
-  background: rgba(14, 13, 9, 0.8); border: 1px solid #5d5435; pointer-events: none; display: none;
-}
-#ui.playing.unlocked #hint { display: block; }
 
 /* In-night overlay */
 #hud { position: absolute; inset: 0; pointer-events: none; display: none; text-shadow: 0 1px 3px #000, 0 0 8px #000; }
@@ -73,3 +67,26 @@
 .credits h3 { margin: 6px 0 0; font-size: 14px; font-weight: normal; letter-spacing: 0.14em; text-transform: uppercase; color: #a59d7c; }
 .credits .small { font-size: 13px; color: #a59d7c; }
 .credits a { color: #f3e7a8; }
+
+/* Pause menu */
+.panel.pause { width: min(380px, calc(100vw - 48px)); max-height: calc(100vh - 32px); overflow-y: auto; }
+#ui.playing > div > .panel.pause { display: flex; }
+.keys { border-collapse: collapse; font-size: 14px; color: #c9c19c; }
+.keys td { padding: 2px 0; }
+.keys .key { width: 96px; color: #f3e7a8; font-family: 'Courier New', monospace; }
+.panel input[type=range] { padding: 0; accent-color: #cdb96a; }
+.howto { font-size: 13px; color: #a59d7c; }
+.lobby .howto li { background: none; border-left: 1px solid #5d5435; padding: 2px 10px; }
+.code-line { display: flex; align-items: baseline; gap: 8px; }
+.panel button.copy { padding: 2px 8px; font-size: 13px; }
+
+/* Danger and atmosphere */
+#hud .dread { position: absolute; inset: 0; opacity: 0; transition: opacity 0.4s;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0) 35%, rgba(60,0,0,0.55) 78%, rgba(20,0,0,0.92) 100%); }
+#hud .flash { position: absolute; inset: 0; opacity: 0; background: #7a0000; }
+#hud .flash.go { animation: caught-flash 1.4s ease-out; }
+@keyframes caught-flash { 0% { opacity: 0.95; } 100% { opacity: 0; } }
+#vignette { position: absolute; inset: 0; pointer-events: none !important;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(0,0,0,0.5) 100%); }
+#grain { position: absolute; inset: -64px; pointer-events: none !important; opacity: 0.07; animation: grain 0.5s steps(4) infinite; }
+@keyframes grain { 0% { transform: translate(0,0); } 25% { transform: translate(-21px,13px); } 50% { transform: translate(17px,-29px); } 75% { transform: translate(-9px,-17px); } 100% { transform: translate(0,0); } }

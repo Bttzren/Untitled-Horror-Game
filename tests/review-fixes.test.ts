@@ -47,7 +47,7 @@ test('a player who left through the Door and then disconnects still counts for t
   w.round.banked = w.round.quota;
   step(w);
   w.players[0]!.pos = { x: 12, z: 13 };
-  step(w, { 0: { interact: true } });
+  step(w, { 0: { interact: true } }, 2);
   expect(w.players[0]!.status).toBe('left');
   removePlayer(w, 0); // closes the tab after getting out
   expect(w.round.result).toBeNull();

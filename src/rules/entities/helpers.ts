@@ -18,7 +18,7 @@ export interface EntityDef {
 }
 
 export function baseEntity(id: number, type: EntityTypeId, pos: Vec2): EntityState {
-  return { id, type, pos: { x: pos.x, z: pos.z }, yaw: 0, active: false, mode: 'idle', target: null, path: [], timer: 0, ignore: [], loud: 0, heardTick: -1, huntMemory: null };
+  return { id, type, pos: { x: pos.x, z: pos.z }, yaw: 0, active: false, mode: 'idle', target: null, path: [], timer: 0, ignore: [], loud: 0, heardTick: -1, huntMemory: null, graceUntil: 0 };
 }
 
 /** Sight-based entities notice a player hiding when they can see them do it. */

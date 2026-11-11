@@ -15,6 +15,7 @@ export class JoinError extends Error {
 export interface SignalOptions { host?: string; port?: number; path?: string; secure?: boolean }
 
 const CONNECT_TIMEOUT_MS = 15_000;
+const MAX_CONNECTIONS = 8;
 /** PeerJS error types that mean the matchmaking server could not be used. */
 const SIGNALLING_ERRORS = new Set(['network', 'server-error', 'socket-error', 'socket-closed', 'unavailable-id', 'ssl-unavailable']);
 
@@ -55,6 +56,8 @@ export function hostPeer(code: string, signal?: SignalOptions): Promise<HostTran
     // If the matchmaking link drops mid-session, friends already connected are unaffected; reconnect so new ones can join.
     peer.on('disconnected', () => { if (opened && !closed && !peer.destroyed) peer.reconnect(); });
     peer.on('connection', conn => {
+      // A room holds 4 players; a few spare connections cover people rejoining. Beyond that, refuse.
+      if (conns.size >= MAX_CONNECTIONS) { conn.on('open', () => conn.close()); return; }
       const id: PeerId = conn.connectionId;
       conn.on('open', () => { conns.set(id, conn); for (const f of cb.connect) f(id); });
       conn.on('data', data => { for (const f of cb.message) f(id, data); });
