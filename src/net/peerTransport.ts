@@ -60,7 +60,8 @@ export function hostPeer(code: string, signal?: SignalOptions): Promise<HostTran
       conn.on('data', data => { for (const f of cb.message) f(id, data); });
       const gone = (): void => { if (conns.delete(id)) for (const f of cb.disconnect) f(id); };
       conn.on('close', gone);
-      conn.on('error', gone);
+      // An error on a connection (for example one message refused) is not the player leaving; only 'close' is.
+      conn.on('error', () => {});
     });
   });
 }

@@ -1,7 +1,8 @@
 import { generateDream } from '../dream/generator';
 import { CONFIG } from '../rules/config';
-import { sanitizeInput } from '../rules/player';
-import type { InputCmd, PlayerId, World } from '../rules/types';
+import { carriedWeight } from '../rules/items';
+import { movePlayer, sanitizeInput } from '../rules/player';
+import type { InputCmd, MemoryState, PlayerId, World } from '../rules/types';
 import { DT, createWorld, removePlayer, stepWorld } from '../rules/world';
 import { cleanName, type HostMsg, type LobbyPlayer, type Snapshot } from './protocol';
 import type { HostTransport, PeerId } from './transport';
@@ -20,12 +21,22 @@ interface Peer {
   queue: InputCmd[];
   /** The input applied most recently; held (without its one-shot actions) when the queue runs dry. */
   held: InputCmd | null;
+  /** Allowance of extra inputs that may be applied to work off a backlog. */
+  catchUp: number;
 }
+
+/** What a player could see of a memory; a change here is worth sending. */
+const memoryKey = (m: MemoryState): string => `${m.state}|${m.carrier}|${m.pos.x}|${m.pos.z}`;
 
 /** More waiting inputs than this means the player's connection stalled and then burst. */
 const MAX_QUEUE = 8;
 /** After a burst, skip ahead so this many inputs remain. */
 const QUEUE_AFTER_BURST = 3;
+/** Waiting inputs beyond this are worked off, one extra per step. */
+const MAX_BACKLOG = 2;
+/** Extra inputs a player may have applied to catch up: this many in a burst, refilling at 3 a second. */
+const CATCH_UP_MAX = 8;
+const CATCH_UP_REFILL = 0.1;
 const ONE_SHOTS = ['interact', 'drop', 'throwIt', 'flashlight'] as const;
 
 /**
@@ -55,7 +66,7 @@ export class GameHost {
     const index = this.transports.push(t) - 1;
     const key = (peer: PeerId): string => `${index}:${peer}`;
     t.onConnect(peerId => {
-      this.peers.set(key(peerId), { transport: t, peerId, playerId: null, name: '', lastSeq: 0, appliedSeq: 0, queue: [], held: null });
+      this.peers.set(key(peerId), { transport: t, peerId, playerId: null, name: '', lastSeq: 0, appliedSeq: 0, queue: [], held: null, catchUp: CATCH_UP_MAX });
     });
     t.onMessage((peerId, msg) => {
       const peer = this.peers.get(key(peerId));
@@ -124,8 +135,9 @@ export class GameHost {
     this._world = createWorld(map, members.map(p => ({ id: p.playerId!, name: p.name })), this._night);
     this._state = 'night';
     this.owed = 0;
-    this.sentMemories = new Map();
-    for (const p of members) { p.lastSeq = 0; p.appliedSeq = 0; p.queue = []; p.held = null; }
+    // Clients build the opening memories from the seed themselves, so only later changes need sending.
+    this.sentMemories = new Map(this._world.memories.map(m => [m.id, memoryKey(m)]));
+    for (const p of members) { p.lastSeq = 0; p.appliedSeq = 0; p.queue = []; p.held = null; p.catchUp = CATCH_UP_MAX; }
     this.broadcast({ t: 'start', seed, night: this._night, quota: this._world.round.quota });
   }
 
@@ -161,6 +173,17 @@ export class GameHost {
     const world = this._world!;
     const inputs = new Map<PlayerId, InputCmd>();
     for (const p of this.members()) {
+      // A backlog means the player's inputs are being applied late. Work it off by applying one extra
+      // input's movement per step, so a single hitch does not cost them the whole night. The allowance
+      // refills slowly, so sending inputs too fast cannot be used to move faster for long.
+      p.catchUp = Math.min(CATCH_UP_MAX, p.catchUp + CATCH_UP_REFILL);
+      const body = world.players.find(x => x.id === p.playerId);
+      if (p.queue.length > MAX_BACKLOG && p.catchUp >= 1 && body) {
+        p.catchUp -= 1;
+        const extra = p.queue.shift()!;
+        movePlayer(body, extra, world.map, carriedWeight(world, body), DT);
+        for (const k of ONE_SHOTS) p.queue[0]![k] ||= extra[k];
+      }
       const next = p.queue.shift();
       if (next) {
         p.held = next;
@@ -182,12 +205,14 @@ export class GameHost {
     for (const p of this.members()) ack[p.playerId!] = p.appliedSeq;
     const memories = world.memories.filter(m => {
       // Internal timers tick constantly and are not worth sending; only what a player could see counts as a change.
-      const text = `${m.state}|${m.carrier}|${m.pos.x}|${m.pos.z}`;
+      const text = memoryKey(m);
       if (this.sentMemories.get(m.id) === text) return false;
       this.sentMemories.set(m.id, text);
       return true;
     });
-    return { tick: world.tick, ack, players: world.players, entities: world.entities, memories, round: world.round };
+    // Entities go out without their plans (route, what they are ignoring): clients only draw them.
+    const entities = world.entities.map(e => ({ ...e, path: [], ignore: [] }));
+    return { tick: world.tick, ack, players: world.players, entities, memories, round: world.round };
   }
 
   private finishNight(): void {

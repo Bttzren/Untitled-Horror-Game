@@ -35,7 +35,7 @@ export function promptFor(view: ViewState, map: DreamMap): string | null {
     }
   }
   const free = map.hidingSpots.some(s =>
-    dist(me.pos, s.pos) <= CONFIG.reach.hide && !view.players.some(p => p.status === 'active' && p.hiddenIn === s.id));
+    dist(me.pos, s.pos) <= CONFIG.reach.hide && lineOfSight(map, me.pos, s.pos) && !view.players.some(p => p.status === 'active' && p.hiddenIn === s.id));
   return free ? 'E — hide' : null;
 }
 

@@ -191,6 +191,10 @@ document.addEventListener('visibilitychange', () => {
     session.client.sendInput({ ...idle, yaw: look.yaw, pitch: look.pitch });
   }
 });
+// Closing or reloading the tab mid-night would drop the player (and, for the host, end the night for everyone): ask first.
+window.addEventListener('beforeunload', e => {
+  if (session?.client.status === 'night') e.preventDefault();
+});
 window.addEventListener('pagehide', () => { session?.client.close(); session?.host?.close(); });
 
 let last = performance.now(), owed = 0;

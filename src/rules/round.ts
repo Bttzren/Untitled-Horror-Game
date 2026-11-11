@@ -21,8 +21,7 @@ export function evaluateEnd(world: World): void {
   const round = world.round;
   if (round.result || world.players.length === 0) return;
   if (world.players.some(p => p.status === 'active')) return;
-  const someoneLeft = world.players.some(p => p.status === 'left');
-  round.result = someoneLeft && round.banked >= round.quota ? 'success' : 'fail';
+  round.result = round.someoneLeft && round.banked >= round.quota ? 'success' : 'fail';
 }
 
 /** Advances the timer and the night's phases, and ends the night when it is over. */

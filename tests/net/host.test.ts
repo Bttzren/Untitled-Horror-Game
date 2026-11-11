@@ -140,12 +140,11 @@ test('when the last player disconnects mid-night the host returns to the lobby a
   expect(host.world).toBeNull();
 });
 
-test('the first snapshot of a night carries every memory; later ones only changed memories', () => {
+test('snapshots carry only memories that changed since the night began', () => {
   const { host, lb, peers } = startedNight(1);
   host.tick(DT); host.tick(DT); lb.deliver();
-  const first = last(peers[0]!, 'snapshot').snap;
-  expect(first.memories).toHaveLength(host.world!.memories.length);
-  expect(first.memories.length).toBeGreaterThan(0);
+  expect(host.world!.memories.length).toBeGreaterThan(0);
+  expect(last(peers[0]!, 'snapshot').snap.memories).toHaveLength(0); // clients build the opening state from the seed
   host.tick(DT); host.tick(DT); lb.deliver();
   expect(last(peers[0]!, 'snapshot').snap.memories).toHaveLength(0);
   host.world!.memories[0]!.pos.x += 1;

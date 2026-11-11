@@ -91,6 +91,7 @@ export function handleInteract(world: World, p: PlayerState, notices: NoticesHid
     }
     if (nearDoor && world.round.doorOpen) {
       p.status = 'left';
+      world.round.someoneLeft = true;
       p.sprinting = false;
       world.events.push({ type: 'left', player: p.id });
       return;
@@ -108,6 +109,7 @@ function hide(world: World, p: PlayerState, notices: NoticesHiding): void {
   for (const spot of world.map.hidingSpots) {
     const d = dist(p.pos, spot.pos);
     if (d > CONFIG.reach.hide || d >= bestD) continue;
+    if (!lineOfSight(world.map, p.pos, spot.pos)) continue; // not through a wall
     if (world.players.some(q => q.status === 'active' && q.hiddenIn === spot.id)) continue;
     best = spot; bestD = d;
   }

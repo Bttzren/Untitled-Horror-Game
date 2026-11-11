@@ -13,10 +13,22 @@ function loudestNews(e: EntityState, world: World): NoiseEvent | null {
   for (const n of world.noises) {
     if (n.tick <= e.heardTick) continue;
     if (dist(n.pos, e.pos) > n.radius) continue;
-    if (n.source.kind === 'memory' && e.ignore.some(i => i.memoryId === (n.source as { id: number }).id)) continue;
+    if (isIgnored(e, world, n)) continue;
     if (!best || n.radius > best.radius || (n.radius === best.radius && n.tick >= best.tick)) best = n;
   }
   return best;
+}
+
+/**
+ * Is this the ringing of a memory it has already investigated? Only the ring of
+ * a memory still lying on the ground is tuned out: once someone picks it up,
+ * drops it or throws it, the Listener hears it again.
+ */
+function isIgnored(e: EntityState, world: World, n: NoiseEvent): boolean {
+  if (n.source.kind !== 'memory' || n.radius !== CONFIG.noise.noisyMemory) return false;
+  const id = n.source.id;
+  if (!e.ignore.some(i => i.memoryId === id)) return false;
+  return world.memories.find(m => m.id === id)?.state === 'ground';
 }
 
 /** Picks somewhere new to drift toward. Seeded, so every run of the same night behaves the same. */

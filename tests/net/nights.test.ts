@@ -8,7 +8,7 @@ function finish(host: ReturnType<typeof startedNight>['host'], how: 'success' | 
   const w = host.world!;
   if (how === 'success') {
     w.round.banked = w.round.quota;
-    w.players[0]!.status = 'left';
+    w.players[0]!.status = 'left'; w.round.someoneLeft = true;
     for (const p of w.players.slice(1)) catchPlayer(w, p, 'usher');
   } else {
     for (const p of w.players) catchPlayer(w, p, 'usher');
@@ -54,7 +54,7 @@ test('a player leaving the room as the last one inside ends the night for the re
   const { host, lb, peers } = startedNight(2);
   const w = host.world!;
   w.round.banked = w.round.quota;
-  w.players[0]!.status = 'left';
+  w.players[0]!.status = 'left'; w.round.someoneLeft = true;
   peers[1]!.t.close(); lb.deliver();
   expect(last(peers[0]!, 'end')).toMatchObject({ result: 'success', nextNight: 2 });
   expect(host.state).toBe('lobby');

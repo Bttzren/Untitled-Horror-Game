@@ -41,6 +41,20 @@ test('solo: when the dream collapses the result shows in the waiting room, and a
   expect(errors).toEqual([]);
 });
 
+test('closing the tab asks first during a night, and not on the menu', async ({ page }) => {
+  const asks = (): Promise<boolean> => page.evaluate(() => {
+    const e = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(e);
+    return e.defaultPrevented;
+  });
+  await page.goto('/?debug');
+  expect(await asks()).toBe(false);
+  await page.getByTestId('solo').click();
+  await page.getByTestId('start').click();
+  await page.waitForFunction(() => (window as any).__dbg?.view()?.players.length === 1);
+  expect(await asks()).toBe(true);
+});
+
 test('solo: banking the quota opens the Door and leaving wins the night', async ({ page }) => {
   await page.goto('/?debug&solo&seed=5');
   await page.waitForFunction(() => (window as any).__dbg?.view()?.players.length === 1);

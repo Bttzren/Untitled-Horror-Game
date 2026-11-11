@@ -34,7 +34,7 @@ export function createWorld(map: DreamMap, players: { id: PlayerId; name: string
     noises: [],
     round: {
       night, quota: quotaFor(night), banked: 0, timeLeft: CONFIG.nightSeconds,
-      phase2: false, doorOpen: false, result: null,
+      phase2: false, doorOpen: false, someoneLeft: false, result: null,
     },
     events: [],
   };

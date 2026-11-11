@@ -92,6 +92,8 @@ export interface RoundState {
   timeLeft: number;
   phase2: boolean;
   doorOpen: boolean;
+  /** At least one player has left through the Door this night (it still counts if they then disconnect). */
+  someoneLeft: boolean;
   result: null | 'success' | 'fail';
 }
 
